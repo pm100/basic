@@ -1,0 +1,7 @@
+10 PRINT "RND with parens:"
+20 PRINT RND(1)
+30 PRINT RND(0)
+40 PRINT ""
+50 PRINT "RND without parens:"
+60 PRINT RND
+70 END

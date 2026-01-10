@@ -1,0 +1,30 @@
+10 PRINT "Statistics Calculation Example"
+20 PRINT "==============================="
+30 PRINT ""
+40 DATA 85, 92, 78, 95, 88
+50 PRINT "Test scores:"
+60 READ S1, S2, S3, S4, S5
+70 PRINT S1
+80 PRINT S2
+90 PRINT S3
+100 PRINT S4
+110 PRINT S5
+120 PRINT ""
+130 LET SUM = S1 + S2 + S3 + S4 + S5
+140 LET AVG = SUM / 5
+150 PRINT "Sum: "
+160 PRINT SUM
+170 PRINT "Average: "
+180 PRINT AVG
+190 PRINT ""
+200 PRINT "Computing deviations from average:"
+210 RESTORE
+220 FOR I = 1 TO 5
+230 READ SCORE
+240 LET DEVIATION = SCORE - AVG
+250 PRINT "Score: "
+260 PRINT SCORE
+270 PRINT "  Deviation: "
+280 PRINT DEVIATION
+290 NEXT I
+300 END

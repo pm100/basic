@@ -1,0 +1,35 @@
+10 PRINT "Testing ON...GOTO and ON...GOSUB"
+20 PRINT "================================"
+30 PRINT ""
+40 REM Test ON...GOTO
+50 PRINT "Test ON...GOTO:"
+60 FOR I = 1 TO 3
+70 PRINT "Choice: "
+80 PRINT I
+90 ON I GOTO 200, 300, 400
+100 NEXT I
+110 GOTO 500
+200 PRINT "First option"
+210 GOTO 100
+300 PRINT "Second option"
+310 GOTO 100
+400 PRINT "Third option"
+410 GOTO 100
+500 PRINT ""
+510 REM Test ON...GOSUB
+520 PRINT "Test ON...GOSUB:"
+530 FOR J = 1 TO 3
+540 PRINT "Subroutine: "
+550 PRINT J
+560 ON J GOSUB 700, 800, 900
+570 NEXT J
+580 GOTO 1000
+700 PRINT "  In subroutine A"
+710 RETURN
+800 PRINT "  In subroutine B"
+810 RETURN
+900 PRINT "  In subroutine C"
+910 RETURN
+1000 PRINT ""
+1010 PRINT "All ON tests complete!"
+1020 END

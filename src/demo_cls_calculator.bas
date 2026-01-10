@@ -1,0 +1,59 @@
+10 CLS
+20 PRINT "================================"
+30 PRINT "  BASIC CALCULATOR"
+40 PRINT "================================"
+50 PRINT ""
+60 DATA 5, 3, 12, 4, 100, 10
+70 PRINT "Addition Examples:"
+80 READ A, B
+90 PRINT A
+100 PRINT " + "
+110 PRINT B
+120 PRINT " = "
+130 PRINT A + B
+140 PRINT ""
+150 PRINT "Multiplication Examples:"
+160 READ C, D
+170 PRINT C
+180 PRINT " * "
+190 PRINT D
+200 PRINT " = "
+210 PRINT C * D
+220 PRINT ""
+230 PRINT "Division Examples:"
+240 READ E, F
+250 PRINT E
+260 PRINT " / "
+270 PRINT F
+280 PRINT " = "
+290 PRINT E / F
+300 PRINT ""
+310 PRINT "Press Enter for next screen..."
+320 INPUT DUMMY
+330 CLS
+340 PRINT "================================"
+350 PRINT "  SCIENTIFIC FUNCTIONS"
+360 PRINT "================================"
+370 PRINT ""
+380 DATA 16, 2.71828, 3.14159
+390 READ N, E, PI
+400 PRINT "Square Root:"
+410 PRINT "SQR("
+420 PRINT N
+430 PRINT ") = "
+440 PRINT SQR(N)
+450 PRINT ""
+460 PRINT "Natural Log:"
+470 PRINT "LOG("
+480 PRINT E
+490 PRINT ") = "
+500 PRINT LOG(E)
+510 PRINT ""
+520 PRINT "Sine:"
+530 PRINT "SIN("
+540 PRINT PI
+550 PRINT ") = "
+560 PRINT SIN(PI)
+570 PRINT ""
+580 PRINT "Demo complete!"
+590 END

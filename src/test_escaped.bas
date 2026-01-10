@@ -1,0 +1,3 @@
+10 PRINT "ASC(\"A\") = "
+20 PRINT ASC("A")
+30 END

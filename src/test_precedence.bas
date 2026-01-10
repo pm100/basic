@@ -1,0 +1,33 @@
+10 PRINT "Testing operator precedence:"
+20 PRINT "2 ^ 3 = "
+30 PRINT 2 ^ 3
+40 PRINT "SQR(16) = "
+50 PRINT SQR(16)
+60 PRINT "COS(0) = "
+70 PRINT COS(0)
+80 PRINT "ABS(-3) = "
+90 PRINT ABS(-3)
+100 PRINT ""
+110 PRINT "Step by step:"
+120 LET A = 2 ^ 3
+130 PRINT "Step 1: 2 ^ 3 = "
+140 PRINT A
+150 LET B = SQR(16)
+160 PRINT "Step 2: SQR(16) = "
+170 PRINT B
+180 LET C = B * COS(0)
+190 PRINT "Step 3: 4 * COS(0) = "
+200 PRINT C
+210 LET D = A + C
+220 PRINT "Step 4: 8 + 4 = "
+230 PRINT D
+240 LET E = ABS(-3)
+250 PRINT "Step 5: ABS(-3) = "
+260 PRINT E
+270 LET F = D - E
+280 PRINT "Step 6: 12 - 3 = "
+290 PRINT F
+300 PRINT ""
+310 PRINT "Full expression result:"
+320 PRINT 2 ^ 3 + SQR(16) * COS(0) - ABS(-3)
+330 END

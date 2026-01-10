@@ -1,0 +1,19 @@
+10 PRINT "Testing RESTORE statement"
+20 PRINT ""
+30 DATA 100, 200, 300
+40 PRINT "First read:"
+50 READ A, B, C
+60 PRINT A
+70 PRINT B
+80 PRINT C
+90 PRINT ""
+100 PRINT "Restoring data pointer..."
+110 RESTORE
+120 PRINT "Reading again:"
+130 READ X, Y, Z
+140 PRINT X
+150 PRINT Y
+160 PRINT Z
+170 PRINT ""
+180 PRINT "RESTORE test successful!"
+190 END

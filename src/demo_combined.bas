@@ -1,0 +1,48 @@
+10 PRINT "Scientific Calculator Demo"
+20 PRINT "Using READ/DATA and Numeric Functions"
+30 PRINT "======================================="
+40 PRINT ""
+50 DATA 0, 1.5708, 3.14159, 4.71239
+60 DATA "0 rad", "PI/2", "PI", "3PI/2"
+70 PRINT "Trigonometric Table:"
+80 PRINT ""
+90 FOR I = 1 TO 4
+100 READ ANGLE
+110 PRINT "Angle: "
+120 RESTORE
+130 FOR J = 1 TO I + 4
+140 READ LABEL
+150 NEXT J
+160 PRINT LABEL
+170 PRINT "  SIN = "
+180 PRINT SIN(ANGLE)
+190 PRINT "  COS = "
+200 PRINT COS(ANGLE)
+210 PRINT "  TAN = "
+220 PRINT TAN(ANGLE)
+230 PRINT ""
+240 NEXT I
+250 PRINT "Statistical Analysis:"
+260 PRINT ""
+270 DATA 12.5, 18.3, 9.7, 15.2, 22.8
+280 LET SUM = 0
+290 FOR I = 1 TO 5
+300 READ VALUE
+310 LET SUM = SUM + VALUE
+320 NEXT I
+330 LET MEAN = SUM / 5
+340 PRINT "Mean = "
+350 PRINT MEAN
+360 PRINT ""
+370 PRINT "Square roots of first 10 integers:"
+380 DATA 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+390 FOR I = 1 TO 10
+400 READ N
+410 PRINT "SQR("
+420 PRINT N
+430 PRINT ") = "
+440 PRINT SQR(N)
+450 NEXT I
+460 PRINT ""
+470 PRINT "Demo complete!"
+480 END

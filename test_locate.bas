@@ -1,0 +1,31 @@
+10 REM Test LOCATE statement
+20 CLS
+30 LOCATE 1, 1
+40 PRINT "Top left corner"
+50 LOCATE 10, 20
+60 PRINT "Middle of screen"
+70 LOCATE 5, 1
+80 PRINT "Row 5, Column 1"
+90 LOCATE 5, 30
+100 PRINT "Row 5, Column 30"
+110 LOCATE 20, 1
+120 PRINT "Press any key to draw a box..."
+130 K$ = INKEY$
+140 IF K$ = "" THEN GOTO 130
+150 CLS
+160 REM Draw a box
+170 LOCATE 5, 10
+180 PRINT "********************"
+190 FOR I = 6 TO 14
+200 LOCATE I, 10
+210 PRINT "*"
+220 LOCATE I, 30
+230 PRINT "*"
+240 NEXT I
+250 LOCATE 15, 10
+260 PRINT "********************"
+270 LOCATE 10, 15
+280 PRINT "HELLO!"
+290 LOCATE 22, 1
+300 PRINT "Done."
+310 END

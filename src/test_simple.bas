@@ -1,0 +1,8 @@
+10 PRINT \"Test 1\"
+20 PRINT
+30 PRINT \"Test 2\"
+40 PRINT 10, 20, 30
+50 PRINT \"Test 3\"
+60 PRINT STRING`$(10, 61)
+70 PRINT \"Test 4\"
+80 END

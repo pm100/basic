@@ -1,0 +1,39 @@
+10 PRINT "Testing 3D Arrays"
+20 PRINT "================="
+30 PRINT ""
+40 DIM CUBE(2,2,2)
+50 PRINT "Created 3D array CUBE(2,2,2)"
+60 PRINT ""
+70 PRINT "Filling 3D array:"
+80 LET N = 1
+90 FOR I = 0 TO 2
+100 FOR J = 0 TO 2
+110 FOR K = 0 TO 2
+120 LET CUBE(I,J,K) = N
+130 LET N = N + 1
+140 NEXT K
+150 NEXT J
+160 NEXT I
+170 PRINT ""
+180 PRINT "Reading some values:"
+190 PRINT "CUBE(0,0,0) = "
+200 PRINT CUBE(0,0,0)
+210 PRINT "CUBE(1,1,1) = "
+220 PRINT CUBE(1,1,1)
+230 PRINT "CUBE(2,2,2) = "
+240 PRINT CUBE(2,2,2)
+250 PRINT ""
+260 PRINT "Computing sum of all elements:"
+270 LET SUM = 0
+280 FOR I = 0 TO 2
+290 FOR J = 0 TO 2
+300 FOR K = 0 TO 2
+310 LET SUM = SUM + CUBE(I,J,K)
+320 NEXT K
+330 NEXT J
+340 NEXT I
+350 PRINT "Sum = "
+360 PRINT SUM
+370 PRINT ""
+380 PRINT "Test complete!"
+390 END

@@ -1,0 +1,28 @@
+10 PRINT "String Functions Test"
+20 PRINT "====================="
+30 PRINT ""
+40 LET S = "Hello World"
+50 PRINT "String: "
+60 PRINT S
+70 PRINT ""
+80 PRINT "LEN(S) = "
+90 PRINT LEN(S)
+100 PRINT ""
+110 PRINT "LEFT$(S, 5) = "
+120 PRINT LEFT$(S, 5)
+130 PRINT ""
+140 PRINT "RIGHT$(S, 5) = "
+150 PRINT RIGHT$(S, 5)
+160 PRINT ""
+170 PRINT "MID$(S, 7, 5) = "
+180 PRINT MID$(S, 7, 5)
+190 PRINT ""
+200 PRINT "UCASE$(S) = "
+210 PRINT UCASE$(S)
+220 PRINT ""
+230 PRINT "LCASE$(S) = "
+240 PRINT LCASE$(S)
+250 PRINT ""
+260 PRINT "INSTR$ position:"
+270 PRINT INSTR$(S, "World")
+280 END

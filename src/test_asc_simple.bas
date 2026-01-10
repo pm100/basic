@@ -1,0 +1,5 @@
+10 PRINT "Testing ASC"
+20 PRINT ASC("A")
+30 PRINT ASC("B")
+40 PRINT ASC("Hello")
+50 END

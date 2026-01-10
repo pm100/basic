@@ -1,0 +1,39 @@
+10 PRINT "Arrays with READ/DATA Statements"
+20 PRINT "================================="
+30 PRINT ""
+40 DATA 85, 92, 78, 95, 88, 76, 91, 84
+50 DIM SCORES(7)
+60 PRINT "Reading test scores into array:"
+70 FOR I = 0 TO 7
+80 READ TEMP
+90 LET SCORES(I) = TEMP
+100 NEXT I
+110 PRINT ""
+120 PRINT "Scores stored in array:"
+130 FOR I = 0 TO 7
+140 PRINT "Score "
+150 PRINT I + 1
+160 PRINT ": "
+170 PRINT SCORES(I)
+180 NEXT I
+190 PRINT ""
+200 PRINT "Computing statistics:"
+210 LET SUM = 0
+220 FOR I = 0 TO 7
+230 LET SUM = SUM + SCORES(I)
+240 NEXT I
+250 LET AVG = SUM / 8
+260 PRINT "Average score: "
+270 PRINT AVG
+280 PRINT ""
+290 PRINT "Scores above average:"
+300 FOR I = 0 TO 7
+310 IF SCORES(I) <= AVG THEN 360
+320 PRINT "Score "
+330 PRINT I + 1
+340 PRINT ": "
+350 PRINT SCORES(I)
+360 NEXT I
+370 PRINT ""
+380 PRINT "Test complete!"
+390 END

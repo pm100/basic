@@ -1,0 +1,67 @@
+10 PRINT "Testing BASIC Numeric Functions"
+20 PRINT ""
+30 PRINT "Testing ABS function:"
+40 LET X = -5.5
+50 PRINT "ABS(-5.5) = "
+60 PRINT ABS(X)
+70 PRINT ""
+80 PRINT "Testing SQR function:"
+90 LET X = 16
+100 PRINT "SQR(16) = "
+110 PRINT SQR(X)
+120 PRINT ""
+130 PRINT "Testing INT function:"
+140 LET X = 7.9
+150 PRINT "INT(7.9) = "
+160 PRINT INT(X)
+170 PRINT ""
+180 PRINT "Testing SIN function:"
+190 LET X = 1.5708
+200 PRINT "SIN(1.5708) ~ "
+210 PRINT SIN(X)
+220 PRINT ""
+230 PRINT "Testing COS function:"
+240 LET X = 0
+250 PRINT "COS(0) = "
+260 PRINT COS(X)
+270 PRINT ""
+280 PRINT "Testing TAN function:"
+290 LET X = 0.7854
+300 PRINT "TAN(0.7854) ~ "
+310 PRINT TAN(X)
+320 PRINT ""
+330 PRINT "Testing ATN function:"
+340 LET X = 1
+350 PRINT "ATN(1) ~ "
+360 PRINT ATN(X)
+370 PRINT ""
+380 PRINT "Testing EXP function:"
+390 LET X = 1
+400 PRINT "EXP(1) ~ "
+410 PRINT EXP(X)
+420 PRINT ""
+430 PRINT "Testing LOG function:"
+440 LET X = 2.71828
+450 PRINT "LOG(2.71828) ~ "
+460 PRINT LOG(X)
+470 PRINT ""
+480 PRINT "Testing ^ operator:"
+490 LET X = 3
+500 LET Y = 2
+510 PRINT "3 ^ 2 = "
+520 PRINT X ^ Y
+530 PRINT ""
+540 PRINT "Testing RND function:"
+550 PRINT "RND(0) = "
+560 PRINT RND(0)
+570 PRINT "RND(0) = "
+580 PRINT RND(0)
+590 PRINT ""
+600 PRINT "Testing floating point arithmetic:"
+610 LET A = 3.14159
+620 LET B = 2.5
+630 PRINT "3.14159 * 2.5 = "
+640 PRINT A * B
+650 PRINT ""
+660 PRINT "All tests complete!"
+670 END

@@ -1,0 +1,7 @@
+10 REM Test SGN function
+20 PRINT "SGN(-5) ="; SGN(-5)
+30 PRINT "SGN(0) ="; SGN(0)
+40 PRINT "SGN(10) ="; SGN(10)
+50 PRINT "SGN(3.14) ="; SGN(3.14)
+60 PRINT "SGN(-0.5) ="; SGN(-0.5)
+70 END

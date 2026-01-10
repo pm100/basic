@@ -1,0 +1,70 @@
+OPTION BASE Summary
+===================
+
+The BASIC interpreter now supports OPTION BASE for controlling array indexing.
+
+SYNTAX:
+-------
+OPTION BASE 0    - Arrays start at index 0 (default)
+OPTION BASE 1    - Arrays start at index 1
+
+KEY BEHAVIORS:
+--------------
+
+1. Default Indexing (OPTION BASE 0)
+   - DIM A(3) creates array with indices 0, 1, 2, 3 (4 elements)
+   - This is the default behavior if no OPTION BASE statement is used
+
+2. 1-Based Indexing (OPTION BASE 1)
+   - DIM A(3) creates array with indices 1, 2, 3 (3 elements)
+   - Common in mathematical applications
+
+3. Array Declaration is Inclusive
+   - DIM A(N) always includes index N as the upper bound
+   - Number of elements depends on OPTION BASE:
+     * BASE 0: N+1 elements (0 to N)
+     * BASE 1: N elements (1 to N)
+
+4. Applies to All Dimensions
+   - Works with 1D, 2D, and N-dimensional arrays (up to 60 dimensions)
+   - DIM M(3,3) with BASE 1: indices (1,1) to (3,3)
+
+5. Auto-Initialization Respects OPTION BASE
+   - Arrays created without DIM use current OPTION BASE setting
+   - Default auto-init range: BASE to 10
+
+6. Persistence
+   - Arrays created with a specific base retain that base
+   - Changing OPTION BASE after DIM doesn't affect existing arrays
+   - Only affects arrays created AFTER the OPTION BASE statement
+
+EXAMPLES:
+---------
+
+Example 1: Basic Usage
+  10 OPTION BASE 1
+  20 DIM SCORES(5)
+  30 FOR I = 1 TO 5
+  40 LET SCORES(I) = I * 10
+  50 NEXT I
+
+Example 2: Matrix with 1-Based Indexing
+  10 OPTION BASE 1
+  20 DIM M(3,3)
+  30 LET M(1,1) = 1
+  40 LET M(2,2) = 2
+  50 LET M(3,3) = 3
+
+Example 3: Comparison
+  10 DIM A(2)         ' Creates A(0), A(1), A(2) - 3 elements
+  20 OPTION BASE 1
+  30 DIM B(2)         ' Creates B(1), B(2) - 2 elements
+  40 PRINT A(0)       ' OK - A uses base 0
+  50 PRINT B(1)       ' OK - B uses base 1
+
+IMPLEMENTATION NOTES:
+---------------------
+- option_base field added to Interpreter (0 or 1)
+- Array struct stores both lower_bounds and upper_bounds vectors
+- Index calculations normalize subscripts to 0-based for flattened storage
+- Bounds checking validates against both lower and upper bounds

@@ -1,0 +1,27 @@
+Flow Control:
+
+IF...THEN - Conditional execution
+FOR...NEXT - Loop with counter
+WHILE...WEND - Loop while condition is true
+END - Stop program execution
+Input/Output:
+
+INPUT - Get user input
+READ...DATA - Read from data statements
+CLS - Clear screen
+String Operations:
+
+LEFT$, RIGHT$, MID$ - String manipulation
+LEN - String length
+CHR$, ASC - Character conversion
+Math Functions:
+
+ABS, INT, SQR - Mathematical operations
+RND - Random number
+Comparison Operators:
+
+<, >, <=, >=, =, <> - For use in IF statements
+
+DEF FN
+EXIT FOR / EXIT WHILE
+SELECT CASE

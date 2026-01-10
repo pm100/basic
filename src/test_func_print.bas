@@ -1,0 +1,4 @@
+10 LET S = "Hello World"
+20 PRINT LEN(S)
+30 PRINT LEFT$(S, 5)
+40 END

@@ -1,0 +1,4 @@
+10 LET S = "Hello"
+20 LET L = LEN(S)
+30 PRINT L
+40 END

@@ -1,0 +1,25 @@
+10 PRINT "Testing MOD Operator"
+20 PRINT "===================="
+30 PRINT ""
+40 PRINT "10 MOD 3 = "
+50 PRINT 10 MOD 3
+60 PRINT "17 MOD 5 = "
+70 PRINT 17 MOD 5
+80 PRINT "100 MOD 7 = "
+90 PRINT 100 MOD 7
+100 PRINT ""
+110 REM Test with variables
+120 LET X = 25
+130 LET Y = 4
+140 PRINT "25 MOD 4 = "
+150 PRINT X MOD Y
+160 PRINT ""
+170 REM Test even/odd
+180 PRINT "Check if numbers are even or odd:"
+190 FOR I = 1 TO 10
+200 IF I MOD 2 = 0 THEN 230
+210 PRINT I; " is odd"
+220 GOTO 240
+230 PRINT I; " is even"
+240 NEXT I
+250 END

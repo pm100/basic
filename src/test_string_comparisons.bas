@@ -1,0 +1,107 @@
+10 PRINT "Testing String Comparisons"
+20 PRINT "=========================="
+30 PRINT ""
+40 REM Test = (equal)
+50 PRINT "Test ="
+60 IF "ABC" = "ABC" THEN 90
+70 PRINT "FAIL: ABC = ABC"
+80 GOTO 100
+90 PRINT "PASS: ABC = ABC"
+100 IF "ABC" = "XYZ" THEN 130
+110 PRINT "PASS: NOT (ABC = XYZ)"
+120 GOTO 140
+130 PRINT "FAIL: ABC = XYZ"
+140 PRINT ""
+150 REM Test <> (not equal)
+160 PRINT "Test <>"
+170 IF "ABC" <> "XYZ" THEN 200
+180 PRINT "FAIL: ABC <> XYZ"
+190 GOTO 210
+200 PRINT "PASS: ABC <> XYZ"
+210 IF "ABC" <> "ABC" THEN 240
+220 PRINT "PASS: NOT (ABC <> ABC)"
+230 GOTO 250
+240 PRINT "FAIL: ABC <> ABC is true"
+250 PRINT ""
+260 REM Test < (less than - lexicographic)
+270 PRINT "Test < (lexicographic)"
+280 IF "ABC" < "XYZ" THEN 310
+290 PRINT "FAIL: ABC < XYZ"
+300 GOTO 320
+310 PRINT "PASS: ABC < XYZ"
+320 IF "XYZ" < "ABC" THEN 350
+330 PRINT "PASS: NOT (XYZ < ABC)"
+340 GOTO 360
+350 PRINT "FAIL: XYZ < ABC is true"
+360 IF "ABC" < "ABC" THEN 390
+370 PRINT "PASS: NOT (ABC < ABC)"
+380 GOTO 400
+390 PRINT "FAIL: ABC < ABC is true"
+400 PRINT ""
+410 REM Test > (greater than - lexicographic)
+420 PRINT "Test > (lexicographic)"
+430 IF "XYZ" > "ABC" THEN 460
+440 PRINT "FAIL: XYZ > ABC"
+450 GOTO 470
+460 PRINT "PASS: XYZ > ABC"
+470 IF "ABC" > "XYZ" THEN 500
+480 PRINT "PASS: NOT (ABC > XYZ)"
+490 GOTO 510
+500 PRINT "FAIL: ABC > XYZ is true"
+510 PRINT ""
+520 REM Test <= (less than or equal)
+530 PRINT "Test <="
+540 IF "ABC" <= "XYZ" THEN 570
+550 PRINT "FAIL: ABC <= XYZ"
+560 GOTO 580
+570 PRINT "PASS: ABC <= XYZ"
+580 IF "ABC" <= "ABC" THEN 610
+590 PRINT "FAIL: ABC <= ABC"
+600 GOTO 620
+610 PRINT "PASS: ABC <= ABC"
+620 IF "XYZ" <= "ABC" THEN 650
+630 PRINT "PASS: NOT (XYZ <= ABC)"
+640 GOTO 660
+650 PRINT "FAIL: XYZ <= ABC is true"
+660 PRINT ""
+670 REM Test >= (greater than or equal)
+680 PRINT "Test >="
+690 IF "XYZ" >= "ABC" THEN 720
+700 PRINT "FAIL: XYZ >= ABC"
+710 GOTO 730
+720 PRINT "PASS: XYZ >= ABC"
+730 IF "ABC" >= "ABC" THEN 760
+740 PRINT "FAIL: ABC >= ABC"
+750 GOTO 770
+760 PRINT "PASS: ABC >= ABC"
+770 IF "ABC" >= "XYZ" THEN 800
+780 PRINT "PASS: NOT (ABC >= XYZ)"
+790 GOTO 810
+800 PRINT "FAIL: ABC >= XYZ is true"
+810 PRINT ""
+820 REM Test case sensitivity
+830 PRINT "Test case sensitivity"
+840 IF "abc" < "ABC" THEN 870
+850 PRINT "PASS: NOT (abc < ABC) - lowercase > uppercase"
+860 GOTO 880
+870 PRINT "FAIL: abc < ABC (should be false)"
+880 IF "ABC" < "abc" THEN 910
+890 PRINT "FAIL: ABC < abc"
+900 GOTO 920
+910 PRINT "PASS: ABC < abc (uppercase < lowercase)"
+920 PRINT ""
+930 REM Test with variables
+940 PRINT "Test with variables"
+950 LET A$ = "Apple"
+960 LET B$ = "Banana"
+970 IF A$ < B$ THEN 1000
+980 PRINT "FAIL: Apple < Banana"
+990 GOTO 1010
+1000 PRINT "PASS: Apple < Banana"
+1010 IF B$ > A$ THEN 1040
+1020 PRINT "FAIL: Banana > Apple"
+1030 GOTO 1050
+1040 PRINT "PASS: Banana > Apple"
+1050 PRINT ""
+1060 PRINT "All string comparison tests complete!"
+1070 END

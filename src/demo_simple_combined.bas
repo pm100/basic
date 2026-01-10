@@ -1,0 +1,33 @@
+10 PRINT "Simple Combined Demo"
+20 PRINT "READ/DATA with Functions"
+30 PRINT "========================"
+40 PRINT ""
+50 PRINT "Square roots:"
+60 DATA 4, 9, 16, 25, 36
+70 FOR I = 1 TO 5
+80 READ N
+90 PRINT "SQR("
+100 PRINT N
+110 PRINT ") = "
+120 PRINT SQR(N)
+130 NEXT I
+140 PRINT ""
+150 PRINT "Exponentials:"
+160 DATA 0, 1, 2, 3
+170 FOR I = 1 TO 4
+180 READ X
+190 PRINT "EXP("
+200 PRINT X
+210 PRINT ") = "
+220 PRINT EXP(X)
+230 NEXT I
+240 PRINT ""
+250 PRINT "Random numbers (using RND and DATA for count):"
+260 DATA 5
+270 READ COUNT
+280 FOR I = 1 TO COUNT
+290 PRINT RND(0)
+300 NEXT I
+310 PRINT ""
+320 PRINT "Demo complete!"
+330 END

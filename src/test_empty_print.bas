@@ -1,0 +1,4 @@
+10 PRINT \"Before\"
+20 PRINT
+30 PRINT \"After\"
+40 END

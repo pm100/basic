@@ -1,0 +1,54 @@
+10 CLS
+20 PRINT "Array Operations Demo"
+30 PRINT "====================="
+40 PRINT ""
+50 PRINT "1. Fibonacci Sequence in Array"
+60 DIM F(10)
+70 LET F(0) = 0
+80 LET F(1) = 1
+90 FOR I = 2 TO 10
+100 LET F(I) = F(I-1) + F(I-2)
+110 NEXT I
+120 PRINT "First 11 Fibonacci numbers:"
+130 FOR I = 0 TO 10
+140 PRINT F(I)
+150 PRINT " "
+160 NEXT I
+170 PRINT ""
+180 PRINT ""
+190 PRINT "2. Multiplication Table (5x5)"
+200 DIM T(4,4)
+210 FOR ROW = 0 TO 4
+220 FOR COL = 0 TO 4
+230 LET T(ROW,COL) = (ROW + 1) * (COL + 1)
+240 NEXT COL
+250 NEXT ROW
+260 PRINT "   1  2  3  4  5"
+270 FOR ROW = 0 TO 4
+280 PRINT ROW + 1
+290 PRINT " "
+300 FOR COL = 0 TO 4
+310 PRINT " "
+320 IF T(ROW,COL) < 10 THEN 340
+330 PRINT ""
+340 PRINT T(ROW,COL)
+350 NEXT COL
+360 PRINT ""
+370 NEXT ROW
+380 PRINT ""
+390 PRINT "3. Using Arrays with Functions"
+400 DIM V(3)
+410 LET V(0) = 4
+420 LET V(1) = 9
+430 LET V(2) = 16
+440 LET V(3) = 25
+450 PRINT "Square roots of perfect squares:"
+460 FOR I = 0 TO 3
+470 PRINT "SQR("
+480 PRINT V(I)
+490 PRINT ") = "
+500 PRINT SQR(V(I))
+510 NEXT I
+520 PRINT ""
+530 PRINT "Demo complete!"
+540 END

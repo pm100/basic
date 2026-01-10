@@ -1,0 +1,30 @@
+10 PRINT "Testing OPTION BASE with Loops"
+20 PRINT "==============================="
+30 PRINT ""
+40 OPTION BASE 1
+50 DIM SCORES(5)
+60 PRINT "DIM SCORES(5) with OPTION BASE 1"
+70 PRINT "Filling array with loop (1 to 5):"
+80 PRINT ""
+90 FOR I = 1 TO 5
+100 LET SCORES(I) = I * 10
+110 NEXT I
+120 PRINT "Reading array values:"
+130 FOR I = 1 TO 5
+140 PRINT "SCORES("
+150 PRINT I
+160 PRINT ") = "
+170 PRINT SCORES(I)
+180 NEXT I
+190 PRINT ""
+200 PRINT "Computing sum:"
+210 LET SUM = 0
+220 FOR I = 1 TO 5
+230 LET SUM = SUM + SCORES(I)
+240 NEXT I
+250 PRINT "Sum = "
+260 PRINT SUM
+270 PRINT "Expected: 150"
+280 PRINT ""
+290 PRINT "Test complete!"
+300 END
