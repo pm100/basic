@@ -1,62 +1,63 @@
+use crossterm::event::{poll, read, KeyCode};
+use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
+use dyncall::{DynCaller, FuncDef};
+use rand::Rng;
 use std::collections::HashMap;
-use std::io::{self, Write};
 use std::env;
 use std::fs;
-use rand::Rng;
-use crossterm::event::{poll, read, KeyCode};
-use crossterm::terminal::{enable_raw_mode, disable_raw_mode};
+use std::io::{self, Write};
 use std::time::Duration;
-
+mod dyncalls;
 fn main() {
     // Set up panic hook to ensure raw mode is disabled on panic
     std::panic::set_hook(Box::new(|panic_info| {
         let _ = disable_raw_mode();
         eprintln!("{}", panic_info);
     }));
-    
+
     let args: Vec<String> = env::args().collect();
-    
+
     if args.len() > 1 {
         // File mode
         let filename = &args[1];
         match fs::read_to_string(filename) {
             Ok(code) => {
                 let mut interpreter = Interpreter::new();
-                
+
                 // Parse the entire file and store lines
                 for line in code.lines() {
                     let tokens = tokenize(line);
-                    
+
                     if let Some(Token::Number(line_num)) = tokens.first() {
                         let line_num: i32 = line_num.parse().unwrap_or(0);
                         let stmt_tokens = tokens[1..].to_vec();
                         let statements = parse(&stmt_tokens);
-                        
+
                         if let Some(stmt) = statements.first() {
                             interpreter.store_line(line_num, stmt);
                         }
                     }
                 }
-                
+
                 // Enable raw mode for INKEY$ and other terminal operations
                 let _ = enable_raw_mode();
-                
+
                 // Small delay to let any pending input settle
                 std::thread::sleep(Duration::from_millis(50));
-                
+
                 // Flush any buffered input before starting
                 while poll(Duration::from_millis(0)).unwrap_or(false) {
                     let _ = read();
                 }
-                
+
                 // Do one final consuming read to ensure buffer is completely clear
                 if poll(Duration::from_millis(0)).unwrap_or(false) {
                     let _ = read();
                 }
-                
+
                 // Run the stored program
                 interpreter.run();
-                
+
                 // Disable raw mode when done
                 let _ = disable_raw_mode();
             }
@@ -79,14 +80,14 @@ enum Token {
     Number(String),
     StringLiteral(String),
     Operator(char),
-    Comparison(String),  // <, >, <=, >=, =, <>
+    Comparison(String), // <, >, <=, >=, =, <>
     Equal,
     LeftParen,
     RightParen,
     Newline,
     To,
     Step,
-    Function(String),  // Built-in functions
+    Function(String), // Built-in functions
     Comma,
     Semicolon,
     And,
@@ -99,55 +100,153 @@ enum Token {
 #[derive(Debug, Clone)]
 enum PrintItem {
     Expr(Vec<Token>),
-    Comma,  // Tab separator
-    Semicolon,  // No space separator
+    Comma,     // Tab separator
+    Semicolon, // No space separator
 }
 
 #[derive(Debug, Clone)]
 enum Statement {
-    Compound(Vec<Statement>),  // Multiple statements separated by :
-    Let { var: String, expr: Vec<Token> },
-    LetArray { var: String, subscripts: Vec<Token>, expr: Vec<Token> },
-    Print { items: Vec<PrintItem>, no_newline: bool },
-    Input { prompt: Option<String>, vars: Vec<String> },
-    Goto { line: i32 },
-    Gosub { line: i32 },
+    Compound(Vec<Statement>), // Multiple statements separated by :
+    Let {
+        var: String,
+        expr: Vec<Token>,
+    },
+    LetArray {
+        var: String,
+        subscripts: Vec<Token>,
+        expr: Vec<Token>,
+    },
+    Print {
+        items: Vec<PrintItem>,
+        no_newline: bool,
+    },
+    Input {
+        prompt: Option<String>,
+        vars: Vec<String>,
+    },
+    Goto {
+        line: i32,
+    },
+    Gosub {
+        line: i32,
+    },
     Return,
-    If { condition: Vec<Token>, then_stmt: Option<Box<Statement>>, else_stmt: Option<Box<Statement>>, then_line: Option<i32> },
-    Swap { var1: String, var2: String },
-    For { var: String, start: Vec<Token>, end: Vec<Token>, step: Option<Vec<Token>> },
-    Next { var: String },
-    While { condition: Vec<Token> },
+    If {
+        condition: Vec<Token>,
+        then_stmt: Option<Box<Statement>>,
+        else_stmt: Option<Box<Statement>>,
+        then_line: Option<i32>,
+    },
+    Swap {
+        var1: String,
+        var2: String,
+    },
+    For {
+        var: String,
+        start: Vec<Token>,
+        end: Vec<Token>,
+        step: Option<Vec<Token>>,
+    },
+    Next {
+        var: String,
+    },
+    While {
+        condition: Vec<Token>,
+    },
     Wend,
     End,
-    Data { values: Vec<Token> },
-    Read { vars: Vec<String> },
+    Data {
+        values: Vec<Token>,
+    },
+    Read {
+        vars: Vec<String>,
+    },
     Restore,
     Cls,
-    Locate { row: Vec<Token>, col: Vec<Token> },
-    Dim { var: String, dims: Vec<usize> },
-    OptionBase { base: usize },
-    MidAssign { var: String, start_expr: Vec<Token>, length_expr: Vec<Token>, value_expr: Vec<Token> },
-    Randomize { seed: Option<Vec<Token>> },
-    OnGoto { expr: Vec<Token>, lines: Vec<i32> },
-    OnGosub { expr: Vec<Token>, lines: Vec<i32> },
-    DefFn { name: String, param: String, expr: Vec<Token> },
+    Locate {
+        row: Vec<Token>,
+        col: Vec<Token>,
+    },
+    Dim {
+        var: String,
+        dims: Vec<usize>,
+    },
+    OptionBase {
+        base: usize,
+    },
+    MidAssign {
+        var: String,
+        start_expr: Vec<Token>,
+        length_expr: Vec<Token>,
+        value_expr: Vec<Token>,
+    },
+    Randomize {
+        seed: Option<Vec<Token>>,
+    },
+    OnGoto {
+        expr: Vec<Token>,
+        lines: Vec<i32>,
+    },
+    OnGosub {
+        expr: Vec<Token>,
+        lines: Vec<i32>,
+    },
+    DefFn {
+        name: String,
+        param: String,
+        expr: Vec<Token>,
+    },
+    DefXfn {
+        name: String,
+        defstr: String,
+    },
     ExitFor,
     ExitWhile,
-    SelectCase { expr: Vec<Token> },
-    Case { values: Vec<Vec<Token>> },
+    SelectCase {
+        expr: Vec<Token>,
+    },
+    Case {
+        values: Vec<Vec<Token>>,
+    },
     CaseElse,
     EndSelect,
-    LineInput { prompt: Option<String>, var: String },
-    LineInputFile { file_num: i32, var: String },
-    Open { filename: Vec<Token>, mode: String, file_num: i32 },
-    Close { file_num: i32 },
-    PrintFile { file_num: i32, items: Vec<PrintItem> },
-    InputFile { file_num: i32, vars: Vec<String> },
-    Write { items: Vec<Vec<Token>> },
-    WriteFile { file_num: i32, items: Vec<Vec<Token>> },
-    OnError { line: i32 },
-    Resume { next: bool },
+    LineInput {
+        prompt: Option<String>,
+        var: String,
+    },
+    LineInputFile {
+        file_num: i32,
+        var: String,
+    },
+    Open {
+        filename: Vec<Token>,
+        mode: String,
+        file_num: i32,
+    },
+    Close {
+        file_num: i32,
+    },
+    PrintFile {
+        file_num: i32,
+        items: Vec<PrintItem>,
+    },
+    InputFile {
+        file_num: i32,
+        vars: Vec<String>,
+    },
+    Write {
+        items: Vec<Vec<Token>>,
+    },
+    WriteFile {
+        file_num: i32,
+        items: Vec<Vec<Token>>,
+    },
+    OnError {
+        line: i32,
+    },
+    Resume {
+        next: bool,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -172,14 +271,16 @@ struct WhileLoop {
 
 #[derive(Debug, Clone)]
 struct Array {
-    lower_bounds: Vec<usize>,  // Lower bound for each dimension
-    upper_bounds: Vec<usize>,  // Upper bound for each dimension
-    data: Vec<Value>,          // Flattened data
+    lower_bounds: Vec<usize>, // Lower bound for each dimension
+    upper_bounds: Vec<usize>, // Upper bound for each dimension
+    data: Vec<Value>,         // Flattened data
 }
 
 impl Array {
     fn new(lower_bounds: Vec<usize>, upper_bounds: Vec<usize>) -> Self {
-        let total_size: usize = lower_bounds.iter().zip(upper_bounds.iter())
+        let total_size: usize = lower_bounds
+            .iter()
+            .zip(upper_bounds.iter())
             .map(|(l, u)| u - l + 1)
             .product();
         Array {
@@ -188,19 +289,19 @@ impl Array {
             data: vec![Value::Number(0.0); total_size],
         }
     }
-    
+
     fn get(&self, subscripts: &[usize]) -> Option<&Value> {
         if subscripts.len() != self.lower_bounds.len() {
             return None;
         }
-        
+
         // Check bounds
         for (i, &sub) in subscripts.iter().enumerate() {
             if sub < self.lower_bounds[i] || sub > self.upper_bounds[i] {
                 return None;
             }
         }
-        
+
         // Calculate flattened index (normalize to 0-based)
         let mut index = 0;
         let mut multiplier = 1;
@@ -209,22 +310,22 @@ impl Array {
             index += normalized * multiplier;
             multiplier *= self.upper_bounds[i] - self.lower_bounds[i] + 1;
         }
-        
+
         self.data.get(index)
     }
-    
+
     fn set(&mut self, subscripts: &[usize], value: Value) -> bool {
         if subscripts.len() != self.lower_bounds.len() {
             return false;
         }
-        
+
         // Check bounds
         for (i, &sub) in subscripts.iter().enumerate() {
             if sub < self.lower_bounds[i] || sub > self.upper_bounds[i] {
                 return false;
             }
         }
-        
+
         // Calculate flattened index (normalize to 0-based)
         let mut index = 0;
         let mut multiplier = 1;
@@ -233,7 +334,7 @@ impl Array {
             index += normalized * multiplier;
             multiplier *= self.upper_bounds[i] - self.lower_bounds[i] + 1;
         }
-        
+
         if index < self.data.len() {
             self.data[index] = value;
             true
@@ -253,8 +354,53 @@ fn tokenize(input: &str) -> Vec<Token> {
     if trimmed.starts_with('\'') {
         return vec![];
     }
-    
-    let keywords = ["PRINT", "LET", "IF", "THEN", "ELSE", "GOTO", "GOSUB", "RETURN", "FOR", "NEXT", "INPUT", "END", "TO", "STEP", "WHILE", "WEND", "DATA", "READ", "RESTORE", "CLS", "DIM", "OPTION", "BASE", "RANDOMIZE", "AND", "OR", "NOT", "MOD", "ON", "SWAP", "DEF", "FN", "EXIT", "SELECT", "CASE", "LINE", "OPEN", "CLOSE", "AS", "ERROR", "RESUME", "WRITE", "LOCATE"];
+
+    let keywords = [
+        "PRINT",
+        "LET",
+        "IF",
+        "THEN",
+        "ELSE",
+        "GOTO",
+        "GOSUB",
+        "RETURN",
+        "FOR",
+        "NEXT",
+        "INPUT",
+        "END",
+        "TO",
+        "STEP",
+        "WHILE",
+        "WEND",
+        "DATA",
+        "READ",
+        "RESTORE",
+        "CLS",
+        "DIM",
+        "OPTION",
+        "BASE",
+        "RANDOMIZE",
+        "AND",
+        "OR",
+        "NOT",
+        "MOD",
+        "ON",
+        "SWAP",
+        "DEF",
+        "FN",
+        "EXIT",
+        "SELECT",
+        "CASE",
+        "LINE",
+        "OPEN",
+        "CLOSE",
+        "AS",
+        "ERROR",
+        "RESUME",
+        "WRITE",
+        "LOCATE",
+        "XFN",
+    ];
     let mut tokens = Vec::new();
     let mut current = String::new();
     let mut in_string = false;
@@ -372,9 +518,15 @@ fn tokenize(input: &str) -> Vec<Token> {
 }
 
 fn push_token(tokens: &mut Vec<Token>, current: &str, keywords: &[&str]) {
-    let functions = ["ABS", "ATN", "COS", "EXP", "INT", "LOG", "RND", "SIN", "SQR", "TAN", "VAL", "TAB", "SPC", "EOF", "SGN", "FIX", "CINT"];
-    let string_functions = ["LEN", "LEFT$", "RIGHT$", "MID$", "UCASE$", "LCASE$", "INSTR$", "CHR$", "ASC", "STR$", "SPACE$", "STRING$", "LTRIM$", "RTRIM$", "TRIM$", "HEX$", "OCT$", "INKEY$"];
-    
+    let functions = [
+        "ABS", "ATN", "COS", "EXP", "INT", "LOG", "RND", "SIN", "SQR", "TAN", "VAL", "TAB", "SPC",
+        "EOF", "SGN", "FIX", "CINT",
+    ];
+    let string_functions = [
+        "LEN", "LEFT$", "RIGHT$", "MID$", "UCASE$", "LCASE$", "INSTR$", "CHR$", "ASC", "STR$",
+        "SPACE$", "STRING$", "LTRIM$", "RTRIM$", "TRIM$", "HEX$", "OCT$", "INKEY$",
+    ];
+
     if keywords.contains(&current) {
         match current {
             "TO" => tokens.push(Token::To),
@@ -387,7 +539,9 @@ fn push_token(tokens: &mut Vec<Token>, current: &str, keywords: &[&str]) {
         }
     } else if functions.contains(&current) || string_functions.contains(&current) {
         tokens.push(Token::Function(current.to_string()));
-    } else if current.chars().all(|ch| ch.is_numeric() || ch == '.') && current.contains(|ch: char| ch.is_numeric()) {
+    } else if current.chars().all(|ch| ch.is_numeric() || ch == '.')
+        && current.contains(|ch: char| ch.is_numeric())
+    {
         tokens.push(Token::Number(current.to_string()));
     } else {
         tokens.push(Token::Identifier(current.to_string()));
@@ -398,7 +552,7 @@ fn parse(tokens: &[Token]) -> Vec<Statement> {
     // First split by colons to handle multiple statements per line
     let mut statement_groups = Vec::new();
     let mut current_group = Vec::new();
-    
+
     for token in tokens {
         if token == &Token::Colon {
             if !current_group.is_empty() {
@@ -412,13 +566,13 @@ fn parse(tokens: &[Token]) -> Vec<Statement> {
     if !current_group.is_empty() {
         statement_groups.push(current_group);
     }
-    
+
     // Parse each statement group
     let mut all_statements = Vec::new();
     for group in statement_groups {
         all_statements.extend(parse_single_statement(&group));
     }
-    
+
     // If there's more than one statement, wrap in a Compound statement
     if all_statements.len() > 1 {
         vec![Statement::Compound(all_statements)]
@@ -446,17 +600,17 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                     }
                     j += 1;
                 }
-                
+
                 // Check if followed by =
                 if j < tokens.len() && tokens[j] == Token::Equal {
                     // Parse arguments inside MID$(...)
                     let args_tokens = &tokens[i + 2..j - 1];
-                    
+
                     // Split by commas to get var, start, length
                     let mut parts = Vec::new();
                     let mut current_part = Vec::new();
                     let mut paren_depth = 0;
-                    
+
                     for token in args_tokens {
                         match token {
                             Token::LeftParen => {
@@ -481,7 +635,7 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                     if !current_part.is_empty() {
                         parts.push(current_part);
                     }
-                    
+
                     if parts.len() == 3 {
                         // parts[0] = variable name, parts[1] = start, parts[2] = length
                         let var = if let Some(Token::Identifier(v)) = parts[0].first() {
@@ -489,10 +643,10 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                         } else {
                             String::new()
                         };
-                        
+
                         let start_expr = parts[1].clone();
                         let length_expr = parts[2].clone();
-                        
+
                         // Get the value expression after =
                         let mut value_expr = Vec::new();
                         let mut k = j + 1;
@@ -500,7 +654,7 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                             value_expr.push(tokens[k].clone());
                             k += 1;
                         }
-                        
+
                         statements.push(Statement::MidAssign {
                             var,
                             start_expr,
@@ -513,14 +667,18 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                 }
             }
         }
-        
+
         if let Token::Keyword(kw) = &tokens[i] {
             match kw.as_str() {
                 "LET" => {
                     if let Some(Token::Identifier(var)) = tokens.get(i + 1) {
                         // Check if it's an array assignment: LET A(5) = expr
                         // Array if followed by left paren and not a function name
-                        let is_function = ["ABS", "ATN", "COS", "EXP", "INT", "LOG", "RND", "SIN", "SQR", "TAN", "VAL", "TAB"].contains(&var.as_str());
+                        let is_function = [
+                            "ABS", "ATN", "COS", "EXP", "INT", "LOG", "RND", "SIN", "SQR", "TAN",
+                            "VAL", "TAB",
+                        ]
+                        .contains(&var.as_str());
                         if !is_function && tokens.get(i + 2) == Some(&Token::LeftParen) {
                             // Find the closing paren for subscripts
                             let mut j = i + 3;
@@ -533,7 +691,7 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                                 }
                                 j += 1;
                             }
-                            
+
                             // j now points past the closing paren
                             if j < tokens.len() && tokens[j] == Token::Equal {
                                 let subscripts = tokens[i + 3..j - 1].to_vec();
@@ -558,9 +716,9 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                                 expr.push(tokens[j].clone());
                                 j += 1;
                             }
-                            statements.push(Statement::Let { 
-                                var: var.clone(), 
-                                expr 
+                            statements.push(Statement::Let {
+                                var: var.clone(),
+                                expr,
                             });
                             i = j;
                         }
@@ -573,17 +731,17 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                         if let Some(Token::Number(file_num_str)) = tokens.get(j) {
                             let file_num = file_num_str.parse::<i32>().unwrap_or(0);
                             j += 1;
-                            
+
                             // Skip comma after file number
                             if j < tokens.len() && tokens[j] == Token::Comma {
                                 j += 1;
                             }
-                            
+
                             // Parse items separated by commas
                             let mut items = Vec::new();
                             let mut current_expr = Vec::new();
                             let mut paren_depth = 0;
-                            
+
                             while j < tokens.len() && tokens[j] != Token::Newline {
                                 match &tokens[j] {
                                     Token::LeftParen => {
@@ -606,11 +764,11 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                                 }
                                 j += 1;
                             }
-                            
+
                             if !current_expr.is_empty() {
                                 items.push(current_expr);
                             }
-                            
+
                             statements.push(Statement::WriteFile { file_num, items });
                             i = j;
                         }
@@ -620,7 +778,7 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                         let mut items = Vec::new();
                         let mut current_expr = Vec::new();
                         let mut paren_depth = 0;
-                        
+
                         while j < tokens.len() && tokens[j] != Token::Newline {
                             match &tokens[j] {
                                 Token::LeftParen => {
@@ -643,11 +801,11 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                             }
                             j += 1;
                         }
-                        
+
                         if !current_expr.is_empty() {
                             items.push(current_expr);
                         }
-                        
+
                         statements.push(Statement::Write { items });
                         i = j;
                     }
@@ -659,17 +817,19 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                         if let Some(Token::Number(file_num_str)) = tokens.get(j) {
                             let file_num = file_num_str.parse::<i32>().unwrap_or(0);
                             j += 1;
-                            
+
                             // Skip comma or semicolon after file number
-                            if j < tokens.len() && (tokens[j] == Token::Comma || tokens[j] == Token::Semicolon) {
+                            if j < tokens.len()
+                                && (tokens[j] == Token::Comma || tokens[j] == Token::Semicolon)
+                            {
                                 j += 1;
                             }
-                            
+
                             // Parse print items
                             let mut items = Vec::new();
                             let mut current_expr = Vec::new();
                             let mut paren_depth = 0;
-                            
+
                             while j < tokens.len() && tokens[j] != Token::Newline {
                                 match &tokens[j] {
                                     Token::LeftParen => {
@@ -700,11 +860,11 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                                 }
                                 j += 1;
                             }
-                            
+
                             if !current_expr.is_empty() {
                                 items.push(PrintItem::Expr(current_expr));
                             }
-                            
+
                             statements.push(Statement::PrintFile { file_num, items });
                             i = j;
                         }
@@ -715,7 +875,7 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                         let mut j = i + 1;
                         let mut no_newline = false;
                         let mut paren_depth = 0;
-                        
+
                         while j < tokens.len() && tokens[j] != Token::Newline {
                             match &tokens[j] {
                                 Token::LeftParen => {
@@ -746,19 +906,19 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                             }
                             j += 1;
                         }
-                        
+
                         // Add any remaining expression
                         if !current_expr.is_empty() {
                             items.push(PrintItem::Expr(current_expr));
                         }
-                        
+
                         // Check if last item is a separator (means no newline)
                         if let Some(last) = items.last() {
                             if matches!(last, PrintItem::Comma | PrintItem::Semicolon) {
                                 no_newline = true;
                             }
                         }
-                        
+
                         statements.push(Statement::Print { items, no_newline });
                         i = j;
                     }
@@ -770,12 +930,14 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                         if let Some(Token::Number(file_num_str)) = tokens.get(j) {
                             let file_num = file_num_str.parse::<i32>().unwrap_or(0);
                             j += 1;
-                            
+
                             // Skip comma or semicolon after file number
-                            if j < tokens.len() && (tokens[j] == Token::Comma || tokens[j] == Token::Semicolon) {
+                            if j < tokens.len()
+                                && (tokens[j] == Token::Comma || tokens[j] == Token::Semicolon)
+                            {
                                 j += 1;
                             }
-                            
+
                             // Get variable list
                             let mut vars = Vec::new();
                             while j < tokens.len() && tokens[j] != Token::Newline {
@@ -784,7 +946,7 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                                 }
                                 j += 1;
                             }
-                            
+
                             if !vars.is_empty() {
                                 statements.push(Statement::InputFile { file_num, vars });
                             }
@@ -794,38 +956,43 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                         // Regular INPUT from keyboard
                         let mut j = i + 1;
                         let mut prompt = None;
-                        
+
                         // Check for prompt string
-                    if let Some(Token::StringLiteral(s)) = tokens.get(j) {
-                        prompt = Some(s.clone());
-                        j += 1;
-                        // Skip semicolon or comma after prompt
-                        if matches!(tokens.get(j), Some(Token::Semicolon) | Some(Token::Comma)) {
+                        if let Some(Token::StringLiteral(s)) = tokens.get(j) {
+                            prompt = Some(s.clone());
+                            j += 1;
+                            // Skip semicolon or comma after prompt
+                            if matches!(tokens.get(j), Some(Token::Semicolon) | Some(Token::Comma))
+                            {
+                                j += 1;
+                            }
+                        }
+
+                        // Collect variable names
+                        let mut vars = Vec::new();
+                        while j < tokens.len() && tokens[j] != Token::Newline {
+                            if let Token::Identifier(var) = &tokens[j] {
+                                vars.push(var.clone());
+                            }
                             j += 1;
                         }
-                    }
-                    
-                    // Collect variable names
-                    let mut vars = Vec::new();
-                    while j < tokens.len() && tokens[j] != Token::Newline {
-                        if let Token::Identifier(var) = &tokens[j] {
-                            vars.push(var.clone());
+
+                        if !vars.is_empty() {
+                            statements.push(Statement::Input { prompt, vars });
                         }
-                        j += 1;
-                    }
-                    
-                    if !vars.is_empty() {
-                        statements.push(Statement::Input { prompt, vars });
-                    }
-                    i = j;
+                        i = j;
                     }
                 }
                 "SWAP" => {
-                    if let (Some(Token::Identifier(var1)), Some(Token::Comma), Some(Token::Identifier(var2))) = 
-                        (tokens.get(i + 1), tokens.get(i + 2), tokens.get(i + 3)) {
-                        statements.push(Statement::Swap { 
-                            var1: var1.clone(), 
-                            var2: var2.clone() 
+                    if let (
+                        Some(Token::Identifier(var1)),
+                        Some(Token::Comma),
+                        Some(Token::Identifier(var2)),
+                    ) = (tokens.get(i + 1), tokens.get(i + 2), tokens.get(i + 3))
+                    {
+                        statements.push(Statement::Swap {
+                            var1: var1.clone(),
+                            var2: var2.clone(),
                         });
                         i += 4;
                     }
@@ -836,24 +1003,24 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                         if let Token::Keyword(kw) = &tokens[i + 1] {
                             if kw == "INPUT" {
                                 let mut j = i + 2;
-                                
+
                                 // Check for # (file input)
                                 if j < tokens.len() && tokens[j] == Token::Operator('#') {
                                     j += 1;
                                     if let Some(Token::Number(file_num_str)) = tokens.get(j) {
                                         let file_num = file_num_str.parse::<i32>().unwrap_or(0);
                                         j += 1;
-                                        
+
                                         // Skip comma after file number
                                         if j < tokens.len() && tokens[j] == Token::Comma {
                                             j += 1;
                                         }
-                                        
+
                                         // Get variable name
                                         if let Some(Token::Identifier(var)) = tokens.get(j) {
-                                            statements.push(Statement::LineInputFile { 
-                                                file_num, 
-                                                var: var.clone() 
+                                            statements.push(Statement::LineInputFile {
+                                                file_num,
+                                                var: var.clone(),
                                             });
                                             i = j + 1;
                                         }
@@ -861,7 +1028,7 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                                 } else {
                                     // Regular LINE INPUT from keyboard
                                     let mut prompt = None;
-                                    
+
                                     // Check for optional prompt
                                     if j < tokens.len() {
                                         if let Token::StringLiteral(s) = &tokens[j] {
@@ -873,13 +1040,13 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                                             }
                                         }
                                     }
-                                    
+
                                     // Get variable name
                                     if j < tokens.len() {
                                         if let Token::Identifier(var) = &tokens[j] {
-                                            statements.push(Statement::LineInput { 
-                                                prompt, 
-                                                var: var.clone() 
+                                            statements.push(Statement::LineInput {
+                                                prompt,
+                                                var: var.clone(),
                                             });
                                             i = j + 1;
                                         }
@@ -893,7 +1060,7 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                     // OPEN filename FOR mode AS #n
                     let mut j = i + 1;
                     let mut filename = Vec::new();
-                    
+
                     // Get filename expression until FOR
                     while j < tokens.len() {
                         if let Token::Keyword(kw) = &tokens[j] {
@@ -904,7 +1071,7 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                         filename.push(tokens[j].clone());
                         j += 1;
                     }
-                    
+
                     if j < tokens.len() {
                         j += 1; // Skip FOR
                         let mode = if j < tokens.len() {
@@ -920,7 +1087,7 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                         } else {
                             String::new()
                         };
-                        
+
                         // Skip AS
                         if j < tokens.len() {
                             if let Token::Keyword(kw) = &tokens[j] {
@@ -929,16 +1096,20 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                                 }
                             }
                         }
-                        
+
                         // Get file number (skip # if present)
                         if j < tokens.len() && tokens[j] == Token::Operator('#') {
                             j += 1;
                         }
-                        
+
                         if j < tokens.len() {
                             if let Token::Number(n_str) = &tokens[j] {
                                 let file_num = n_str.parse::<i32>().unwrap_or(0);
-                                statements.push(Statement::Open { filename, mode, file_num });
+                                statements.push(Statement::Open {
+                                    filename,
+                                    mode,
+                                    file_num,
+                                });
                                 i = j + 1;
                             }
                         }
@@ -975,11 +1146,11 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                             }
                         }
                     }
-                    
+
                     // ON expr GOTO/GOSUB line1, line2, line3...
                     let mut j = i + 1;
                     let mut expr = Vec::new();
-                    
+
                     // Get expression until GOTO or GOSUB
                     while j < tokens.len() {
                         if let Token::Keyword(kw) = &tokens[j] {
@@ -990,12 +1161,12 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                         expr.push(tokens[j].clone());
                         j += 1;
                     }
-                    
+
                     if j < tokens.len() {
                         if let Token::Keyword(kw) = &tokens[j] {
                             let is_goto = kw == "GOTO";
                             j += 1; // Skip GOTO/GOSUB
-                            
+
                             // Collect line numbers separated by commas
                             let mut lines = Vec::new();
                             while j < tokens.len() && tokens[j] != Token::Newline {
@@ -1004,7 +1175,7 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                                 }
                                 j += 1;
                             }
-                            
+
                             if is_goto {
                                 statements.push(Statement::OnGoto { expr, lines });
                             } else {
@@ -1027,14 +1198,14 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                         condition.push(tokens[j].clone());
                         j += 1;
                     }
-                    
+
                     j += 1; // Skip THEN
-                    
+
                     // Check if it's a line number or inline statement
                     let then_line;
                     let mut then_stmt = None;
                     let mut else_stmt = None;
-                    
+
                     if let Some(Token::Number(line)) = tokens.get(j) {
                         // Traditional IF...THEN line_number
                         then_line = Some(line.parse().unwrap_or(0));
@@ -1043,7 +1214,7 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                         // Inline statement after THEN
                         then_line = None;
                         let mut then_tokens = Vec::new();
-                        
+
                         // Collect tokens until ELSE or newline
                         while j < tokens.len() && tokens[j] != Token::Newline {
                             if let Token::Keyword(kw) = &tokens[j] {
@@ -1054,7 +1225,7 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                             then_tokens.push(tokens[j].clone());
                             j += 1;
                         }
-                        
+
                         // Parse the THEN statement
                         if !then_tokens.is_empty() {
                             then_tokens.push(Token::Newline);
@@ -1063,20 +1234,20 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                                 then_stmt = Some(Box::new(stmt.clone()));
                             }
                         }
-                        
+
                         // Check for ELSE
                         if j < tokens.len() {
                             if let Token::Keyword(kw) = &tokens[j] {
                                 if kw == "ELSE" {
                                     j += 1; // Skip ELSE
                                     let mut else_tokens = Vec::new();
-                                    
+
                                     // Collect tokens until newline
                                     while j < tokens.len() && tokens[j] != Token::Newline {
                                         else_tokens.push(tokens[j].clone());
                                         j += 1;
                                     }
-                                    
+
                                     // Parse the ELSE statement
                                     if !else_tokens.is_empty() {
                                         else_tokens.push(Token::Newline);
@@ -1088,10 +1259,10 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                                 }
                             }
                         }
-                        
+
                         i = j;
                     }
-                    
+
                     statements.push(Statement::If {
                         condition,
                         then_stmt,
@@ -1104,7 +1275,7 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                         if let Some(Token::Equal) = tokens.get(i + 2) {
                             let mut j = i + 3;
                             let mut start_expr = Vec::new();
-                            
+
                             // Get start expression (until TO)
                             while j < tokens.len() {
                                 if tokens[j] == Token::To {
@@ -1113,10 +1284,10 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                                 start_expr.push(tokens[j].clone());
                                 j += 1;
                             }
-                            
+
                             j += 1; // Skip TO
                             let mut end_expr = Vec::new();
-                            
+
                             // Get end expression (until STEP or end of line)
                             while j < tokens.len() {
                                 if tokens[j] == Token::Step || tokens[j] == Token::Newline {
@@ -1125,7 +1296,7 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                                 end_expr.push(tokens[j].clone());
                                 j += 1;
                             }
-                            
+
                             let mut step_expr = None;
                             if j < tokens.len() && tokens[j] == Token::Step {
                                 j += 1;
@@ -1136,7 +1307,7 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                                 }
                                 step_expr = Some(step);
                             }
-                            
+
                             statements.push(Statement::For {
                                 var: var.clone(),
                                 start: start_expr,
@@ -1155,7 +1326,9 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                         String::new()
                     };
                     statements.push(Statement::Next { var });
-                    i += if tokens.get(i + 1).is_some() && matches!(tokens.get(i + 1), Some(Token::Identifier(_))) {
+                    i += if tokens.get(i + 1).is_some()
+                        && matches!(tokens.get(i + 1), Some(Token::Identifier(_)))
+                    {
                         2
                     } else {
                         1
@@ -1189,7 +1362,9 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                                                 // Collect expression
                                                 let mut j = i + 7;
                                                 let mut expr = Vec::new();
-                                                while j < tokens.len() && tokens[j] != Token::Newline {
+                                                while j < tokens.len()
+                                                    && tokens[j] != Token::Newline
+                                                {
                                                     expr.push(tokens[j].clone());
                                                     j += 1;
                                                 }
@@ -1200,6 +1375,21 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                                                 });
                                                 i = j;
                                             }
+                                        }
+                                    }
+                                }
+                            }
+                        } else if fn_kw == "XFN" {
+                            if let Some(Token::Identifier(name)) = tokens.get(i + 2) {
+                                // Expect (param)
+                                if matches!(tokens.get(i + 3), Some(Token::LeftParen)) {
+                                    if let Some(Token::StringLiteral(defstr)) = tokens.get(i + 4) {
+                                        if matches!(tokens.get(i + 5), Some(Token::RightParen)) {
+                                            statements.push(Statement::DefXfn {
+                                                name: name.clone(),
+                                                defstr: defstr.clone(),
+                                            });
+                                            i += 6;
                                         }
                                     }
                                 }
@@ -1249,12 +1439,12 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                             continue;
                         }
                     }
-                    
+
                     // Parse comma-separated case values
                     let mut j = i + 1;
                     let mut values = Vec::new();
                     let mut current_value = Vec::new();
-                    
+
                     while j < tokens.len() && tokens[j] != Token::Newline {
                         if tokens[j] == Token::Comma {
                             if !current_value.is_empty() {
@@ -1266,18 +1456,18 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                         }
                         j += 1;
                     }
-                    
+
                     if !current_value.is_empty() {
                         values.push(current_value);
                     }
-                    
+
                     statements.push(Statement::Case { values });
                     i = j;
                 }
                 "GOTO" => {
                     if let Some(Token::Number(line)) = tokens.get(i + 1) {
                         statements.push(Statement::Goto {
-                            line: line.parse().unwrap_or(0)
+                            line: line.parse().unwrap_or(0),
                         });
                         i += 2;
                     }
@@ -1285,7 +1475,7 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                 "GOSUB" => {
                     if let Some(Token::Number(line)) = tokens.get(i + 1) {
                         statements.push(Statement::Gosub {
-                            line: line.parse().unwrap_or(0)
+                            line: line.parse().unwrap_or(0),
                         });
                         i += 2;
                     }
@@ -1332,24 +1522,30 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                     // LOCATE row, col
                     let mut j = i + 1;
                     let mut row_expr = Vec::new();
-                    
+
                     // Parse row expression until comma
-                    while j < tokens.len() && tokens[j] != Token::Comma && tokens[j] != Token::Newline {
+                    while j < tokens.len()
+                        && tokens[j] != Token::Comma
+                        && tokens[j] != Token::Newline
+                    {
                         row_expr.push(tokens[j].clone());
                         j += 1;
                     }
-                    
+
                     let mut col_expr = Vec::new();
                     if j < tokens.len() && tokens[j] == Token::Comma {
                         j += 1; // Skip comma
-                        // Parse column expression
+                                // Parse column expression
                         while j < tokens.len() && tokens[j] != Token::Newline {
                             col_expr.push(tokens[j].clone());
                             j += 1;
                         }
                     }
-                    
-                    statements.push(Statement::Locate { row: row_expr, col: col_expr });
+
+                    statements.push(Statement::Locate {
+                        row: row_expr,
+                        col: col_expr,
+                    });
                     i = j;
                 }
                 "DIM" => {
@@ -1358,7 +1554,7 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                         if tokens.get(i + 2) == Some(&Token::LeftParen) {
                             let mut j = i + 3;
                             let mut dims = Vec::new();
-                            
+
                             // Parse dimension sizes
                             while j < tokens.len() && tokens[j] != Token::RightParen {
                                 if let Token::Number(n) = &tokens[j] {
@@ -1368,7 +1564,7 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                                 }
                                 j += 1;
                             }
-                            
+
                             statements.push(Statement::Dim {
                                 var: var.clone(),
                                 dims,
@@ -1468,7 +1664,7 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                     }
                     j += 1;
                 }
-                
+
                 // j now points past the closing paren
                 if j < tokens.len() && tokens[j] == Token::Equal {
                     let subscripts = tokens[i + 2..j - 1].to_vec();
@@ -1506,6 +1702,7 @@ struct Interpreter {
     arrays: HashMap<String, Array>,
     option_base: usize,
     user_functions: HashMap<String, (String, Vec<Token>)>, // name -> (param, expr)
+    external_functions: HashMap<String, FuncDef>,          // name -> (param, expr)
     exit_for_flag: bool,
     exit_while_flag: bool,
     file_handles: HashMap<i32, std::fs::File>,
@@ -1529,6 +1726,7 @@ impl Interpreter {
             arrays: HashMap::new(),
             option_base: 0,
             user_functions: HashMap::new(),
+            external_functions: HashMap::new(),
             exit_for_flag: false,
             exit_while_flag: false,
             file_handles: HashMap::new(),
@@ -1550,7 +1748,7 @@ impl Interpreter {
     fn list(&self) {
         let mut lines: Vec<_> = self.program.keys().collect();
         lines.sort();
-        
+
         for line_num in lines {
             if let Some(stmt) = self.program.get(line_num) {
                 println!("{} {:?}", line_num, stmt);
@@ -1561,7 +1759,7 @@ impl Interpreter {
     fn run(&mut self) {
         let mut lines: Vec<_> = self.program.keys().cloned().collect();
         lines.sort();
-        
+
         // First pass: collect all DATA values
         self.data_values.clear();
         self.data_pointer = 0;
@@ -1584,12 +1782,12 @@ impl Interpreter {
                 }
             }
         }
-        
+
         let mut pc = 0; // program counter (index into lines vec)
-        
+
         while pc < lines.len() {
             let line_num = lines[pc];
-            
+
             // Check for RESUME - jump to the saved resume position
             if self.resume_line.is_some() {
                 if let Some(resume_pc) = self.resume_line {
@@ -1598,7 +1796,7 @@ impl Interpreter {
                     continue;
                 }
             }
-            
+
             if let Some(stmt) = self.program.get(&line_num).cloned() {
                 match stmt {
                     Statement::Goto { line } => {
@@ -1630,7 +1828,10 @@ impl Interpreter {
                             break;
                         }
                     }
-                    Statement::OnGoto { expr, lines: target_lines } => {
+                    Statement::OnGoto {
+                        expr,
+                        lines: target_lines,
+                    } => {
                         let index_val = self.evaluate_expr(&expr);
                         if let Value::Number(n) = index_val {
                             let index = n.trunc() as usize;
@@ -1644,7 +1845,10 @@ impl Interpreter {
                             // If index out of range, just continue to next line
                         }
                     }
-                    Statement::OnGosub { expr, lines: target_lines } => {
+                    Statement::OnGosub {
+                        expr,
+                        lines: target_lines,
+                    } => {
                         let index_val = self.evaluate_expr(&expr);
                         if let Value::Number(n) = index_val {
                             let index = n.trunc() as usize;
@@ -1659,7 +1863,12 @@ impl Interpreter {
                             // If index out of range, just continue to next line
                         }
                     }
-                    Statement::If { condition, then_stmt, else_stmt, then_line } => {
+                    Statement::If {
+                        condition,
+                        then_stmt,
+                        else_stmt,
+                        then_line,
+                    } => {
                         if self.evaluate_condition(&condition) {
                             // Execute THEN part
                             if let Some(stmt) = then_stmt {
@@ -1677,18 +1886,23 @@ impl Interpreter {
                             }
                         }
                     }
-                    Statement::For { var, start, end, step } => {
+                    Statement::For {
+                        var,
+                        start,
+                        end,
+                        step,
+                    } => {
                         // Evaluate and set the loop variable
                         let start_val = self.evaluate_expr(&start);
                         self.variables.insert(var.clone(), start_val);
-                        
+
                         // Evaluate end value and step
                         let end_val = if let Value::Number(n) = self.evaluate_expr(&end) {
                             n
                         } else {
                             0.0
                         };
-                        
+
                         let step_val = if let Some(s) = step {
                             if let Value::Number(n) = self.evaluate_expr(&s) {
                                 n
@@ -1698,7 +1912,7 @@ impl Interpreter {
                         } else {
                             1.0
                         };
-                        
+
                         // Push loop info onto stack (pc + 1 to start at next line)
                         self.for_loops.push(ForLoop {
                             var: var.clone(),
@@ -1719,18 +1933,21 @@ impl Interpreter {
                             // If NEXT has no variable, or if it matches the loop variable
                             if var.is_empty() || for_loop.var == var {
                                 // Increment the loop variable
-                                if let Some(Value::Number(current)) = self.variables.get(&for_loop.var) {
+                                if let Some(Value::Number(current)) =
+                                    self.variables.get(&for_loop.var)
+                                {
                                     let new_val = current + for_loop.step;
-                                    
+
                                     // Check if we should continue the loop
                                     let should_continue = if for_loop.step > 0.0 {
                                         new_val <= for_loop.end_value
                                     } else {
                                         new_val >= for_loop.end_value
                                     };
-                                    
+
                                     if should_continue {
-                                        self.variables.insert(for_loop.var.clone(), Value::Number(new_val));
+                                        self.variables
+                                            .insert(for_loop.var.clone(), Value::Number(new_val));
                                         pc = for_loop.return_pc;
                                         continue;
                                     } else {
@@ -1795,7 +2012,7 @@ impl Interpreter {
                     Statement::SelectCase { expr } => {
                         // Evaluate the SELECT expression
                         let select_value = self.evaluate_expr(&expr);
-                        
+
                         // Find matching CASE
                         let mut found_match = false;
                         let mut j = pc + 1;
@@ -1808,7 +2025,9 @@ impl Interpreter {
                                             for case_val_expr in &values {
                                                 let case_val = self.evaluate_expr(case_val_expr);
                                                 let matches = match (&select_value, &case_val) {
-                                                    (Value::Number(a), Value::Number(b)) => (a - b).abs() < f64::EPSILON,
+                                                    (Value::Number(a), Value::Number(b)) => {
+                                                        (a - b).abs() < f64::EPSILON
+                                                    }
                                                     (Value::String(a), Value::String(b)) => a == b,
                                                     _ => false,
                                                 };
@@ -1886,7 +2105,9 @@ impl Interpreter {
                         // Wrap statement execution in error handler
                         if self.error_handler.is_some() {
                             // Execute with error handling
-                            self.execute_statement_with_error_handling(&stmt, line_num, &lines, &mut pc);
+                            self.execute_statement_with_error_handling(
+                                &stmt, line_num, &lines, &mut pc,
+                            );
                         } else {
                             self.execute_statement(&stmt);
                         }
@@ -1895,7 +2116,7 @@ impl Interpreter {
             }
             pc += 1;
         }
-        
+
         self.call_stack.clear();
         self.for_loops.clear();
         self.while_loops.clear();
@@ -1946,7 +2167,7 @@ impl Interpreter {
                 for expr in items {
                     values.push(self.evaluate_expr(expr));
                 }
-                
+
                 // Now write to file
                 if let Some(file) = self.file_handles.get_mut(file_num) {
                     for (idx, val) in values.iter().enumerate() {
@@ -1973,17 +2194,26 @@ impl Interpreter {
                     println!();
                     return;
                 }
-                
+
                 let mut column = 0;
                 const TAB_WIDTH: usize = 14;
-                
+
                 for item in items {
                     match item {
                         PrintItem::Expr(expr) => {
                             // Check if this is a TAB(n) or SPC(n) function call
                             if expr.len() >= 4 {
-                                if let (Token::Function(fname), Token::LeftParen, _, Token::RightParen) = 
-                                    (&expr[0], &expr[1], &expr[2], expr.get(3).unwrap_or(&Token::Newline)) {
+                                if let (
+                                    Token::Function(fname),
+                                    Token::LeftParen,
+                                    _,
+                                    Token::RightParen,
+                                ) = (
+                                    &expr[0],
+                                    &expr[1],
+                                    &expr[2],
+                                    expr.get(3).unwrap_or(&Token::Newline),
+                                ) {
                                     if fname == "TAB" {
                                         // Evaluate TAB argument to get target column
                                         let tab_expr = vec![expr[2].clone()];
@@ -2008,7 +2238,7 @@ impl Interpreter {
                                     }
                                 }
                             }
-                            
+
                             // Regular expression evaluation
                             let value = self.evaluate_expr(expr);
                             let text = match value {
@@ -2031,7 +2261,7 @@ impl Interpreter {
                         }
                     }
                 }
-                
+
                 if !*no_newline {
                     println!();
                 } else {
@@ -2046,26 +2276,35 @@ impl Interpreter {
                     print!("? ");
                 }
                 io::stdout().flush().unwrap();
-                
+
                 let mut input = String::new();
                 io::stdin().read_line(&mut input).unwrap();
                 let input = input.trim();
-                
+
                 // Split input by commas for multiple variables
                 let values: Vec<&str> = input.split(',').map(|s| s.trim()).collect();
-                
+
                 for (i, var) in vars.iter().enumerate() {
                     let val = values.get(i).unwrap_or(&"");
                     if let Ok(num) = val.parse::<f64>() {
                         self.variables.insert(var.clone(), Value::Number(num));
                     } else {
-                        self.variables.insert(var.clone(), Value::String(val.to_string()));
+                        self.variables
+                            .insert(var.clone(), Value::String(val.to_string()));
                     }
                 }
             }
             Statement::Swap { var1, var2 } => {
-                let val1 = self.variables.get(var1).cloned().unwrap_or(Value::Number(0.0));
-                let val2 = self.variables.get(var2).cloned().unwrap_or(Value::Number(0.0));
+                let val1 = self
+                    .variables
+                    .get(var1)
+                    .cloned()
+                    .unwrap_or(Value::Number(0.0));
+                let val2 = self
+                    .variables
+                    .get(var2)
+                    .cloned()
+                    .unwrap_or(Value::Number(0.0));
                 self.variables.insert(var1.clone(), val2);
                 self.variables.insert(var2.clone(), val1);
             }
@@ -2095,7 +2334,7 @@ impl Interpreter {
                 // Position cursor at row, col (1-based)
                 use crossterm::cursor::MoveTo;
                 use crossterm::execute;
-                
+
                 let row_val = if !row.is_empty() {
                     if let Value::Number(n) = self.evaluate_expr(row) {
                         (n as u16).saturating_sub(1) // Convert to 0-based
@@ -2105,7 +2344,7 @@ impl Interpreter {
                 } else {
                     0
                 };
-                
+
                 let col_val = if !col.is_empty() {
                     if let Value::Number(n) = self.evaluate_expr(col) {
                         (n as u16).saturating_sub(1) // Convert to 0-based
@@ -2115,7 +2354,7 @@ impl Interpreter {
                 } else {
                     0
                 };
-                
+
                 execute!(io::stdout(), MoveTo(col_val, row_val)).ok();
             }
             Statement::Dim { var, dims } => {
@@ -2134,55 +2373,69 @@ impl Interpreter {
             Statement::OptionBase { base } => {
                 self.option_base = *base;
             }
-            Statement::LetArray { var, subscripts, expr } => {
+            Statement::LetArray {
+                var,
+                subscripts,
+                expr,
+            } => {
                 let subs = self.parse_subscripts(subscripts);
                 let value = self.evaluate_expr(expr);
                 self.set_array_element(var, &subs, value);
             }
-            Statement::MidAssign { var, start_expr, length_expr, value_expr } => {
+            Statement::MidAssign {
+                var,
+                start_expr,
+                length_expr,
+                value_expr,
+            } => {
                 // Get the variable's current value
-                let current_val = self.variables.get(var).cloned().unwrap_or(Value::String(String::new()));
+                let current_val = self
+                    .variables
+                    .get(var)
+                    .cloned()
+                    .unwrap_or(Value::String(String::new()));
                 let s = match current_val {
                     Value::String(s) => s,
                     Value::Number(n) => n.to_string(),
                 };
-                
+
                 // Evaluate start position and length
                 let start_val = self.evaluate_expr(start_expr);
                 let start = match start_val {
                     Value::Number(n) => (n as usize).saturating_sub(1), // BASIC is 1-indexed
                     _ => 0,
                 };
-                
+
                 let length_val = self.evaluate_expr(length_expr);
                 let length = match length_val {
                     Value::Number(n) => n as usize,
                     _ => 0,
                 };
-                
+
                 // Evaluate the value to insert
                 let new_val = self.evaluate_expr(value_expr);
                 let new_str = match new_val {
                     Value::String(s) => s,
                     Value::Number(n) => n.to_string(),
                 };
-                
+
                 // Replace the substring
                 let mut chars: Vec<char> = s.chars().collect();
                 let end = (start + length).min(chars.len());
-                
+
                 // Remove the old substring
                 if start < chars.len() {
                     chars.drain(start..end);
                 }
-                
+
                 // Insert the new substring at the start position
                 let new_chars: Vec<char> = new_str.chars().collect();
                 for (i, c) in new_chars.iter().enumerate() {
                     chars.insert(start + i, *c);
                 }
-                
-                self.variables.insert(var.clone(), Value::String(chars.iter().collect()));
+
+                self.variables
+                    .insert(var.clone(), Value::String(chars.iter().collect()));
             }
             Statement::Randomize { seed } => {
                 if let Some(seed_expr) = seed {
@@ -2200,8 +2453,13 @@ impl Interpreter {
                 }
             }
             Statement::DefFn { name, param, expr } => {
-                // Store user-defined function
-                self.user_functions.insert(name.clone(), (param.clone(), expr.clone()));
+                self.user_functions
+                    .insert(name.clone(), (param.clone(), expr.clone()));
+            }
+            Statement::DefXfn { name, defstr } => {
+                let fdef = DynCaller::define_function_by_str(defstr).unwrap();
+
+                self.external_functions.insert(name.clone(), fdef);
             }
             Statement::ExitFor => {
                 self.exit_for_flag = true;
@@ -2209,8 +2467,10 @@ impl Interpreter {
             Statement::ExitWhile => {
                 self.exit_while_flag = true;
             }
-            Statement::SelectCase { .. } | 
-            Statement::Case { .. } | Statement::CaseElse | Statement::EndSelect => {
+            Statement::SelectCase { .. }
+            | Statement::Case { .. }
+            | Statement::CaseElse
+            | Statement::EndSelect => {
                 // These are handled in run() method during flow control
             }
             Statement::LineInput { prompt, var } => {
@@ -2221,10 +2481,18 @@ impl Interpreter {
                 let mut input = String::new();
                 io::stdin().read_line(&mut input).unwrap();
                 // Don't trim or split - keep the entire line including commas
-                self.variables.insert(var.clone(), Value::String(input.trim_end_matches('\n').trim_end_matches('\r').to_string()));
+                self.variables.insert(
+                    var.clone(),
+                    Value::String(
+                        input
+                            .trim_end_matches('\n')
+                            .trim_end_matches('\r')
+                            .to_string(),
+                    ),
+                );
             }
             Statement::LineInputFile { file_num, var } => {
-                use std::io::{Read};
+                use std::io::Read;
                 if let Some(file) = self.file_handles.get_mut(file_num) {
                     let mut line_bytes = Vec::new();
                     // Read until newline
@@ -2241,31 +2509,43 @@ impl Interpreter {
                             Err(_) => break,
                         }
                     }
-                    
+
                     // Convert bytes to string and remove \r if present
                     let line = String::from_utf8_lossy(&line_bytes).to_string();
                     let trimmed = line.trim_end_matches('\r').to_string();
                     self.variables.insert(var.clone(), Value::String(trimmed));
                 }
             }
-            Statement::Open { filename, mode, file_num } => {
+            Statement::Open {
+                filename,
+                mode,
+                file_num,
+            } => {
                 let filename_val = self.evaluate_expr(filename);
                 let filename_str = match filename_val {
                     Value::String(s) => s,
                     Value::Number(n) => n.to_string(),
                 };
-                
+
                 use std::fs::OpenOptions;
                 let file_result = match mode.as_str() {
                     "INPUT" => OpenOptions::new().read(true).open(&filename_str),
-                    "OUTPUT" => OpenOptions::new().write(true).create(true).truncate(true).open(&filename_str),
-                    "APPEND" => OpenOptions::new().write(true).create(true).append(true).open(&filename_str),
+                    "OUTPUT" => OpenOptions::new()
+                        .write(true)
+                        .create(true)
+                        .truncate(true)
+                        .open(&filename_str),
+                    "APPEND" => OpenOptions::new()
+                        .write(true)
+                        .create(true)
+                        .append(true)
+                        .open(&filename_str),
                     _ => {
                         eprintln!("Error: Unknown file mode '{}'", mode);
                         return;
                     }
                 };
-                
+
                 match file_result {
                     Ok(file) => {
                         self.file_handles.insert(*file_num, file);
@@ -2291,14 +2571,29 @@ impl Interpreter {
                         PrintItem::Expr(tokens) => {
                             // Check if this is a SPC(n) or TAB(n) function call
                             if tokens.len() >= 4 {
-                                if let (Token::Function(fname), Token::LeftParen, _, Token::RightParen) = 
-                                    (&tokens[0], &tokens[1], &tokens[2], tokens.get(3).unwrap_or(&Token::Newline)) {
+                                if let (
+                                    Token::Function(fname),
+                                    Token::LeftParen,
+                                    _,
+                                    Token::RightParen,
+                                ) = (
+                                    &tokens[0],
+                                    &tokens[1],
+                                    &tokens[2],
+                                    tokens.get(3).unwrap_or(&Token::Newline),
+                                ) {
                                     if fname == "SPC" {
                                         // Evaluate SPC argument to get number of spaces
                                         let spc_expr = vec![tokens[2].clone()];
                                         if let Value::Number(n) = self.evaluate_expr(&spc_expr) {
                                             let spaces = n as usize;
-                                            outputs.push((String::new(), false, false, true, spaces));
+                                            outputs.push((
+                                                String::new(),
+                                                false,
+                                                false,
+                                                true,
+                                                spaces,
+                                            ));
                                             continue;
                                         }
                                     } else if fname == "TAB" {
@@ -2306,13 +2601,19 @@ impl Interpreter {
                                         let tab_expr = vec![tokens[2].clone()];
                                         if let Value::Number(n) = self.evaluate_expr(&tab_expr) {
                                             let target = n as usize;
-                                            outputs.push((String::new(), false, false, true, target));
+                                            outputs.push((
+                                                String::new(),
+                                                false,
+                                                false,
+                                                true,
+                                                target,
+                                            ));
                                             continue;
                                         }
                                     }
                                 }
                             }
-                            
+
                             let val = self.evaluate_expr(tokens);
                             let output = match val {
                                 Value::Number(n) => {
@@ -2334,7 +2635,7 @@ impl Interpreter {
                         }
                     }
                 }
-                
+
                 // Now write to file
                 if let Some(file) = self.file_handles.get_mut(file_num) {
                     for (output, is_comma, is_semicolon, is_spc, spc_count) in outputs {
@@ -2352,7 +2653,10 @@ impl Interpreter {
                     }
                     // Add newline if not suppressed
                     if !items.is_empty() {
-                        if !matches!(items.last(), Some(PrintItem::Comma) | Some(PrintItem::Semicolon)) {
+                        if !matches!(
+                            items.last(),
+                            Some(PrintItem::Comma) | Some(PrintItem::Semicolon)
+                        ) {
                             writeln!(file).ok();
                         }
                     }
@@ -2370,7 +2674,8 @@ impl Interpreter {
                                 if let Ok(n) = trimmed.parse::<f64>() {
                                     self.variables.insert(var.clone(), Value::Number(n));
                                 } else {
-                                    self.variables.insert(var.clone(), Value::String(trimmed.to_string()));
+                                    self.variables
+                                        .insert(var.clone(), Value::String(trimmed.to_string()));
                                 }
                             }
                         }
@@ -2392,11 +2697,17 @@ impl Interpreter {
             _ => {}
         }
     }
-    
-    fn execute_statement_with_error_handling(&mut self, stmt: &Statement, line_num: i32, lines: &[i32], pc: &mut usize) {
+
+    fn execute_statement_with_error_handling(
+        &mut self,
+        stmt: &Statement,
+        line_num: i32,
+        lines: &[i32],
+        pc: &mut usize,
+    ) {
         // Execute the statement
         self.execute_statement(stmt);
-        
+
         // Check if an error occurred (marked by error_line < 0)
         if self.error_line < 0 {
             // Extract error code from error_line
@@ -2404,8 +2715,9 @@ impl Interpreter {
             // Set the actual error line and jump to handler
             self.error_line = line_num;
             // Store error code in a variable for ERR function
-            self.variables.insert("__ERR__".to_string(), Value::Number(err_code as f64));
-            
+            self.variables
+                .insert("__ERR__".to_string(), Value::Number(err_code as f64));
+
             if let Some(handler_line) = self.error_handler {
                 if let Some(handler_pc) = lines.iter().position(|&l| l == handler_line) {
                     *pc = handler_pc - 1; // -1 because pc will be incremented
@@ -2431,7 +2743,7 @@ impl Interpreter {
                 _ => {}
             }
         }
-        
+
         // Then check for AND
         depth = 0;
         for (i, token) in tokens.iter().enumerate() {
@@ -2447,17 +2759,20 @@ impl Interpreter {
                 _ => {}
             }
         }
-        
+
         // Handle NOT (highest precedence)
         if !tokens.is_empty() && tokens[0] == Token::Not {
             return !self.evaluate_condition(&tokens[1..]);
         }
-        
+
         // Handle parentheses
-        if !tokens.is_empty() && tokens[0] == Token::LeftParen && tokens[tokens.len() - 1] == Token::RightParen {
+        if !tokens.is_empty()
+            && tokens[0] == Token::LeftParen
+            && tokens[tokens.len() - 1] == Token::RightParen
+        {
             return self.evaluate_condition(&tokens[1..tokens.len() - 1]);
         }
-        
+
         // Find the comparison operator
         let mut left = Vec::new();
         let mut right = Vec::new();
@@ -2499,17 +2814,15 @@ impl Interpreter {
             }
 
             match (left_compare, right_compare) {
-                (Value::String(l), Value::String(r)) => {
-                    match op.as_str() {
-                        "=" => l == r,
-                        "<>" => l != r,
-                        "<" => l < r,
-                        ">" => l > r,
-                        "<=" => l <= r,
-                        ">=" => l >= r,
-                        _ => false,
-                    }
-                }
+                (Value::String(l), Value::String(r)) => match op.as_str() {
+                    "=" => l == r,
+                    "<>" => l != r,
+                    "<" => l < r,
+                    ">" => l > r,
+                    "<=" => l <= r,
+                    ">=" => l >= r,
+                    _ => false,
+                },
                 _ => false,
             }
         } else {
@@ -2566,33 +2879,39 @@ impl Interpreter {
 
         // Process functions and parentheses first
         let processed_tokens = self.process_functions_and_parentheses(&tokens);
-        
+
         // After processing, check if we have strings to concatenate
-        let has_string_results = processed_tokens.iter().any(|t| matches!(t, Token::StringLiteral(_))) || 
-                                 processed_tokens.iter().any(|t| {
-                                     if let Token::Identifier(id) = t {
-                                         if let Some(val) = self.variables.get(id) {
-                                             matches!(val, Value::String(_))
-                                         } else {
-                                             false
-                                         }
-                                     } else {
-                                         false
-                                     }
-                                 });
+        let has_string_results = processed_tokens
+            .iter()
+            .any(|t| matches!(t, Token::StringLiteral(_)))
+            || processed_tokens.iter().any(|t| {
+                if let Token::Identifier(id) = t {
+                    if let Some(val) = self.variables.get(id) {
+                        matches!(val, Value::String(_))
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            });
 
         // If we have strings and + operators after processing, handle string concatenation
-        if has_string_results && processed_tokens.iter().any(|t| matches!(t, Token::Operator('+'))) {
-            return self.evaluate_string_expr(&tokens);  // Re-process from original tokens
+        if has_string_results
+            && processed_tokens
+                .iter()
+                .any(|t| matches!(t, Token::Operator('+')))
+        {
+            return self.evaluate_string_expr(&tokens); // Re-process from original tokens
         }
-        
+
         // Check if we got a single string result after processing
         if processed_tokens.len() == 1 {
             if let Token::StringLiteral(s) = &processed_tokens[0] {
                 return Value::String(s.clone());
             }
         }
-        
+
         // Convert tokens to values and operators
         let mut values = Vec::new();
         let mut operators = Vec::new();
@@ -2614,7 +2933,7 @@ impl Interpreter {
                     operators.push(*op);
                 }
                 Token::Mod => {
-                    operators.push('%');  // Use % internally for MOD
+                    operators.push('%'); // Use % internally for MOD
                 }
                 _ => {}
             }
@@ -2635,7 +2954,7 @@ impl Interpreter {
             if i + 1 >= values.len() {
                 break;
             }
-            
+
             match operators[i] {
                 '*' => {
                     let last = new_values.pop().unwrap();
@@ -2686,11 +3005,11 @@ impl Interpreter {
     fn evaluate_string_expr(&mut self, tokens: &[Token]) -> Value {
         // Process functions first
         let tokens = self.process_functions_and_parentheses(tokens);
-        
+
         // Collect string/value parts and operators
         let mut parts = Vec::new();
         let mut i = 0;
-        
+
         while i < tokens.len() {
             match &tokens[i] {
                 Token::StringLiteral(s) => {
@@ -2713,11 +3032,11 @@ impl Interpreter {
             }
             i += 1;
         }
-        
+
         if parts.is_empty() {
             return Value::String(String::new());
         }
-        
+
         // Concatenate all parts
         let mut result = String::new();
         for part in parts {
@@ -2726,21 +3045,25 @@ impl Interpreter {
                 Value::Number(n) => result.push_str(&n.to_string()),
             }
         }
-        
+
         Value::String(result)
     }
-    
-    fn apply_exponentiation(&self, values: Vec<f64>, operators: Vec<char>) -> (Vec<f64>, Vec<char>) {
+
+    fn apply_exponentiation(
+        &self,
+        values: Vec<f64>,
+        operators: Vec<char>,
+    ) -> (Vec<f64>, Vec<char>) {
         // Find all ^ operators - if none, return unchanged
         if !operators.contains(&'^') {
             return (values, operators);
         }
-        
+
         // Process exponentiation from right to left (right-associative)
         // In values/operators arrays: values[i] operators[i] values[i+1] operators[i+1] values[i+2] ...
         let mut result_values = Vec::new();
         let mut result_operators = Vec::new();
-        
+
         let mut i = 0;
         while i < values.len() {
             // Check if value[i] is followed by ^ operator
@@ -2753,18 +3076,18 @@ impl Interpreter {
                 }
                 // Now we have values[start_val_idx] ^ values[start_val_idx+1] ^ ... ^ values[op_idx]
                 // with op_idx-start_val_idx consecutive ^ operators
-                
+
                 // Calculate right-associative exponentiation
                 let mut result = values[op_idx];
                 for j in (start_val_idx..op_idx).rev() {
                     result = values[j].powf(result);
                 }
-                
+
                 result_values.push(result);
-                
+
                 // Skip past all the values and ^ operators we just processed
                 i = op_idx + 1;
-                
+
                 // If there's a non-^ operator after the last value, add it
                 if op_idx < operators.len() {
                     result_operators.push(operators[op_idx]);
@@ -2778,7 +3101,7 @@ impl Interpreter {
                 i += 1;
             }
         }
-        
+
         (result_values, result_operators)
     }
 
@@ -2803,40 +3126,105 @@ impl Interpreter {
                                 }
                                 j += 1;
                             }
-                            
-                            // Evaluate the argument
+
+                            // Parse all arguments (split by commas)
                             let arg_tokens = &tokens[i + 3..j - 1];
-                            let arg_processed = self.process_functions_and_parentheses(arg_tokens);
-                            let arg_value = self.evaluate_expr(&arg_processed);
-                            
-                            // Call user-defined function
-                            if let Some((param, expr)) = self.user_functions.get(func_name).cloned() {
+                            let mut args = Vec::new();
+                            let mut current_arg = Vec::new();
+                            let mut paren_depth = 0;
+
+                            for token in arg_tokens {
+                                match token {
+                                    Token::LeftParen => {
+                                        paren_depth += 1;
+                                        current_arg.push(token.clone());
+                                    }
+                                    Token::RightParen => {
+                                        paren_depth -= 1;
+                                        current_arg.push(token.clone());
+                                    }
+                                    Token::Comma if paren_depth == 0 => {
+                                        if !current_arg.is_empty() {
+                                            args.push(current_arg.clone());
+                                            current_arg.clear();
+                                        }
+                                    }
+                                    _ => {
+                                        current_arg.push(token.clone());
+                                    }
+                                }
+                            }
+                            if !current_arg.is_empty() {
+                                args.push(current_arg);
+                            }
+
+                            // Call user-defined function (single arg only)
+                            if let Some((param, expr)) = self.user_functions.get(func_name).cloned()
+                            {
+                                // Evaluate the single argument
+                                let arg_value = if args.is_empty() {
+                                    Value::Number(0.0)
+                                } else {
+                                    let arg_processed =
+                                        self.process_functions_and_parentheses(&args[0]);
+                                    self.evaluate_expr(&arg_processed)
+                                };
+
                                 // Save current value of parameter variable (if it exists)
                                 let saved_value = self.variables.get(&param).cloned();
-                                
+
                                 // Set parameter to argument value
                                 self.variables.insert(param.clone(), arg_value);
-                                
+
                                 // Evaluate function expression
                                 let func_result = self.evaluate_expr(&expr);
-                                
+
                                 // Restore parameter variable
                                 if let Some(val) = saved_value {
                                     self.variables.insert(param, val);
                                 } else {
                                     self.variables.remove(&param);
                                 }
-                                
+
                                 // Push result
                                 match func_result {
                                     Value::Number(n) => result.push(Token::Number(n.to_string())),
                                     Value::String(s) => result.push(Token::StringLiteral(s)),
                                 }
+                            } else if let Some(fdef) =
+                                self.external_functions.get(func_name).cloned()
+                            {
+                                // Evaluate all arguments for external function
+                                let mut arg_values = Vec::new();
+                                for arg in &args {
+                                    let arg_processed = self.process_functions_and_parentheses(arg);
+                                    let arg_value = self.evaluate_expr(&arg_processed);
+                                    arg_values.push(arg_value);
+                                }
+                                self.handle_external_call(&fdef, arg_values, &mut result);
+                                // let mut invoke = fdef.prep();
+                                // match arg_value {
+                                //     Value::Number(num) => invoke.push_arg(&(num as i64)),
+                                //     Value::String(str) => invoke.push_arg(&str),
+                                // }
+                                // let ret = invoke.call();
+                                // match ret {
+                                //     ArgVal::I32(n) => {
+                                //         result.push(Token::Number(n.to_string()));
+                                //     }
+                                //     // ArgVal::RustString(s) => {
+                                //     //     result.push(Token::StringLiteral(s));
+                                //     // }
+                                //     _ => {
+                                //         result.push(Token::Number("0".to_string()));
+                                //     }
+                                // }
+                                // println!("External FN {} returned {:?}", func_name, ret);
                             } else {
                                 // Function not defined
                                 result.push(Token::Number("0".to_string()));
                             }
-                            
+
                             i = j;
                             continue;
                         }
@@ -2847,10 +3235,16 @@ impl Interpreter {
                 i += 1;
             } else if let Token::Function(func_name) = &tokens[i] {
                 // Check if it's a string function or special function that needs token processing
-                let string_funcs = ["LEN", "LEFT$", "RIGHT$", "MID$", "UCASE$", "LCASE$", "INSTR$", "CHR$", "ASC", "STR$", "VAL", "SPACE$", "STRING$", "LTRIM$", "RTRIM$", "TRIM$", "HEX$", "OCT$", "INKEY$"];
+                let string_funcs = [
+                    "LEN", "LEFT$", "RIGHT$", "MID$", "UCASE$", "LCASE$", "INSTR$", "CHR$", "ASC",
+                    "STR$", "VAL", "SPACE$", "STRING$", "LTRIM$", "RTRIM$", "TRIM$", "HEX$",
+                    "OCT$", "INKEY$",
+                ];
                 if string_funcs.contains(&func_name.as_str()) {
                     // Special case: INKEY$ can be called without parentheses
-                    if func_name == "INKEY$" && (i + 1 >= tokens.len() || tokens[i + 1] != Token::LeftParen) {
+                    if func_name == "INKEY$"
+                        && (i + 1 >= tokens.len() || tokens[i + 1] != Token::LeftParen)
+                    {
                         // INKEY$ with no arguments
                         let func_result = self.evaluate_string_function(&func_name, &[]);
                         match func_result {
@@ -2870,11 +3264,11 @@ impl Interpreter {
                             }
                             j += 1;
                         }
-                        
+
                         // Parse arguments inside function
                         let args_tokens = &tokens[i + 2..j - 1];
                         let func_result = self.evaluate_string_function(&func_name, args_tokens);
-                        
+
                         // Push result as appropriate token
                         match func_result {
                             Value::String(s) => result.push(Token::StringLiteral(s)),
@@ -2899,12 +3293,12 @@ impl Interpreter {
                             }
                             j += 1;
                         }
-                        
+
                         // Recursively evaluate the argument
                         let arg_tokens = &tokens[i + 2..j - 1];
                         let arg_processed = self.process_functions_and_parentheses(arg_tokens);
                         let arg_value = self.evaluate_expr(&arg_processed);
-                        
+
                         if let Value::Number(arg) = arg_value {
                             let func_result = self.evaluate_function(&func_name, arg);
                             result.push(Token::Number(func_result.to_string()));
@@ -2919,9 +3313,14 @@ impl Interpreter {
                 // Check if this is a user-defined function call (FN followed by name)
                 // Actually, FN calls look like: Token::Keyword("FN"), Token::Identifier(name), Token::LeftParen...
                 // But here we're in identifier context, so let's check if it's an array or regular var
-                
+
                 // Check if this is an array access (identifier followed by left paren, but not a function)
-                let is_function = ["ABS", "ATN", "COS", "EXP", "INT", "LOG", "RND", "SIN", "SQR", "TAN", "VAL", "TAB", "LEN", "LEFT$", "RIGHT$", "MID$", "UCASE$", "LCASE$", "INSTR$", "CHR$", "ASC", "STR$", "SPACE$", "STRING$"].contains(&id.as_str());
+                let is_function = [
+                    "ABS", "ATN", "COS", "EXP", "INT", "LOG", "RND", "SIN", "SQR", "TAN", "VAL",
+                    "TAB", "LEN", "LEFT$", "RIGHT$", "MID$", "UCASE$", "LCASE$", "INSTR$", "CHR$",
+                    "ASC", "STR$", "SPACE$", "STRING$",
+                ]
+                .contains(&id.as_str());
                 if !is_function && i + 1 < tokens.len() && tokens[i + 1] == Token::LeftParen {
                     // Find matching right paren
                     let mut depth = 1;
@@ -2934,11 +3333,11 @@ impl Interpreter {
                         }
                         j += 1;
                     }
-                    
+
                     // Parse subscripts (comma-separated)
                     let subscript_tokens = &tokens[i + 2..j - 1];
                     let subscripts = self.parse_subscripts(subscript_tokens);
-                    
+
                     // Get array value
                     let array_value = self.get_array_element(id, &subscripts);
                     result.push(Token::Number(array_value.to_string()));
@@ -2959,7 +3358,7 @@ impl Interpreter {
                     }
                     j += 1;
                 }
-                
+
                 // Recursively evaluate the expression inside parentheses
                 let inner = &tokens[i + 1..j - 1];
                 let inner_processed = self.process_functions_and_parentheses(inner);
@@ -2977,7 +3376,7 @@ impl Interpreter {
 
         result
     }
-    
+
     fn evaluate_function(&mut self, func_name: &str, arg: f64) -> f64 {
         match func_name {
             "ABS" => arg.abs(),
@@ -3008,7 +3407,10 @@ impl Interpreter {
             "SIN" => arg.sin(),
             "SQR" => {
                 if arg < 0.0 {
-                    eprintln!("Error: SQR of negative number ({}), using absolute value", arg);
+                    eprintln!(
+                        "Error: SQR of negative number ({}), using absolute value",
+                        arg
+                    );
                     arg.abs().sqrt()
                 } else {
                     arg.sqrt()
@@ -3055,7 +3457,7 @@ impl Interpreter {
         let mut args = Vec::new();
         let mut current_arg = Vec::new();
         let mut paren_depth = 0;
-        
+
         for token in args_tokens {
             match token {
                 Token::LeftParen => {
@@ -3097,7 +3499,7 @@ impl Interpreter {
                 }
                 let string_val = self.evaluate_expr(&args[0]);
                 let count_val = self.evaluate_expr(&args[1]);
-                
+
                 let s = match string_val {
                     Value::String(s) => s,
                     Value::Number(n) => n.to_string(),
@@ -3106,7 +3508,7 @@ impl Interpreter {
                     Value::Number(n) => n as usize,
                     _ => 0,
                 };
-                
+
                 Value::String(s.chars().take(count).collect())
             }
             "RIGHT$" => {
@@ -3115,7 +3517,7 @@ impl Interpreter {
                 }
                 let string_val = self.evaluate_expr(&args[0]);
                 let count_val = self.evaluate_expr(&args[1]);
-                
+
                 let s = match string_val {
                     Value::String(s) => s,
                     Value::Number(n) => n.to_string(),
@@ -3124,9 +3526,13 @@ impl Interpreter {
                     Value::Number(n) => n as usize,
                     _ => 0,
                 };
-                
+
                 let chars: Vec<char> = s.chars().collect();
-                let start = if count > chars.len() { 0 } else { chars.len() - count };
+                let start = if count > chars.len() {
+                    0
+                } else {
+                    chars.len() - count
+                };
                 Value::String(chars[start..].iter().collect())
             }
             "MID$" => {
@@ -3135,7 +3541,7 @@ impl Interpreter {
                 }
                 let string_val = self.evaluate_expr(&args[0]);
                 let start_val = self.evaluate_expr(&args[1]);
-                
+
                 let s = match string_val {
                     Value::String(s) => s,
                     Value::Number(n) => n.to_string(),
@@ -3144,7 +3550,7 @@ impl Interpreter {
                     Value::Number(n) => (n as usize).saturating_sub(1), // BASIC is 1-indexed
                     _ => 0,
                 };
-                
+
                 if args.len() >= 3 {
                     let length_val = self.evaluate_expr(&args[2]);
                     let length = match length_val {
@@ -3186,7 +3592,7 @@ impl Interpreter {
                 }
                 let haystack_val = self.evaluate_expr(&args[0]);
                 let needle_val = self.evaluate_expr(&args[1]);
-                
+
                 let haystack = match haystack_val {
                     Value::String(s) => s,
                     Value::Number(n) => n.to_string(),
@@ -3195,7 +3601,7 @@ impl Interpreter {
                     Value::String(s) => s,
                     Value::Number(n) => n.to_string(),
                 };
-                
+
                 if let Some(pos) = haystack.find(&needle) {
                     // Convert to 1-indexed position
                     Value::Number((pos + 1) as f64)
@@ -3229,7 +3635,7 @@ impl Interpreter {
                     Value::String(s) => s,
                     Value::Number(n) => n.to_string(),
                 };
-                
+
                 // Get first character's ASCII code
                 if let Some(first_char) = s.chars().next() {
                     Value::Number(first_char as u32 as f64)
@@ -3315,13 +3721,13 @@ impl Interpreter {
                     Value::Number(n) => n.max(0.0) as usize,
                     _ => 0,
                 };
-                
+
                 let char_val = self.evaluate_expr(&args[1]);
                 let ch = match char_val {
                     Value::Number(n) => n as u8 as char,
                     Value::String(s) => s.chars().next().unwrap_or(' '),
                 };
-                
+
                 Value::String(ch.to_string().repeat(count))
             }
             "LTRIM$" => {
@@ -3358,18 +3764,23 @@ impl Interpreter {
                 }
             }
             "INKEY$" => {
-                let mut keypressed: Value  = Value::String(String::from(""));
-                let test: Result<bool, io::Error>  = crossterm::event::poll(Duration::from_millis(0));
+                let mut keypressed: Value = Value::String(String::from(""));
+                let test: Result<bool, io::Error> =
+                    crossterm::event::poll(Duration::from_millis(0));
                 if test.is_ok() && test.unwrap() {
-                    let key_event: Result<crossterm::event::Event, io::Error> = crossterm::event::read();
+                    let key_event: Result<crossterm::event::Event, io::Error> =
+                        crossterm::event::read();
                     if key_event.is_ok() {
                         if let crossterm::event::Event::Key(key) = key_event.unwrap() {
-                            if key.code == KeyCode::Char('c') && key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) {
+                            if key.code == KeyCode::Char('c')
+                                && key
+                                    .modifiers
+                                    .contains(crossterm::event::KeyModifiers::CONTROL)
+                            {
                                 // Handle Ctrl+C
                                 println!("^C detected, exiting.");
                                 std::process::exit(0);
-                            }
-                            else {
+                            } else {
                                 keypressed = match key.code {
                                     KeyCode::Esc => Value::String("\x1b".to_string()),
                                     KeyCode::Enter => Value::String("\r".to_string()),
@@ -3382,7 +3793,7 @@ impl Interpreter {
                         }
                     }
                 }
-                
+
                 keypressed
             }
             _ => {
@@ -3409,11 +3820,11 @@ impl Interpreter {
             _ => 0.0,
         }
     }
- 
+
     fn parse_subscripts(&mut self, tokens: &[Token]) -> Vec<usize> {
         let mut subscripts = Vec::new();
         let mut current = Vec::new();
-        
+
         for token in tokens {
             if token == &Token::Comma {
                 if !current.is_empty() {
@@ -3427,7 +3838,7 @@ impl Interpreter {
                 current.push(token.clone());
             }
         }
-        
+
         // Handle last subscript
         if !current.is_empty() {
             let value = self.evaluate_expr(&current);
@@ -3435,10 +3846,10 @@ impl Interpreter {
                 subscripts.push(n as usize);
             }
         }
-        
+
         subscripts
     }
-    
+
     fn get_array_element(&mut self, name: &str, subscripts: &[usize]) -> f64 {
         // Auto-initialize if needed with default dimensions (base to 10 for each dimension)
         if !self.arrays.contains_key(name) {
@@ -3447,7 +3858,7 @@ impl Interpreter {
             let array = Array::new(lower_bounds, upper_bounds);
             self.arrays.insert(name.to_string(), array);
         }
-        
+
         if let Some(array) = self.arrays.get(name) {
             if let Some(Value::Number(n)) = array.get(subscripts) {
                 return *n;
@@ -3457,7 +3868,7 @@ impl Interpreter {
         }
         0.0
     }
-    
+
     fn set_array_element(&mut self, name: &str, subscripts: &[usize], value: Value) {
         // Auto-initialize if needed with default dimensions (base to 10 for each dimension)
         if !self.arrays.contains_key(name) {
@@ -3466,14 +3877,13 @@ impl Interpreter {
             let array = Array::new(lower_bounds, upper_bounds);
             self.arrays.insert(name.to_string(), array);
         }
-        
+
         if let Some(array) = self.arrays.get_mut(name) {
             if !array.set(subscripts, value) {
                 eprintln!("Error: Array subscript out of bounds or dimension mismatch");
             }
         }
     }
-    
 }
 
 struct Interactive {
@@ -3493,42 +3903,42 @@ impl Interactive {
         println!("Use line numbers (e.g., '10 PRINT X') to store code");
         println!("Type 'RUN' to execute stored code");
         println!("Type 'LIST' to view stored code\n");
-        
+
         loop {
             print!("> ");
             io::stdout().flush().unwrap();
-            
+
             let mut input = String::new();
             io::stdin().read_line(&mut input).unwrap();
-            
+
             let line = input.trim();
-            
+
             if line.to_uppercase() == "EXIT" {
                 break;
             }
-            
+
             if line.is_empty() {
                 continue;
             }
-            
+
             if line.to_uppercase() == "RUN" {
                 self.interpreter.run();
                 continue;
             }
-            
+
             if line.to_uppercase() == "LIST" {
                 self.interpreter.list();
                 continue;
             }
-            
+
             let tokens = tokenize(line);
-            
+
             // Check if line starts with a number
             if let Some(Token::Number(line_num)) = tokens.first() {
                 let line_num: i32 = line_num.parse().unwrap_or(0);
                 let stmt_tokens = tokens[1..].to_vec();
                 let statements = parse(&stmt_tokens);
-                
+
                 if statements.is_empty() {
                     // Empty line - delete the line number
                     self.interpreter.delete_line(line_num);
@@ -3538,16 +3948,16 @@ impl Interactive {
             } else {
                 // Immediate mode - execute right away
                 let statements = parse(&tokens);
-                
+
                 if statements.is_empty() {
                     println!("Error: Invalid statement");
                     continue;
                 }
-                
+
                 self.interpreter.execute_immediate(&statements);
             }
         }
-        
+
         println!("Goodbye!");
     }
 }
