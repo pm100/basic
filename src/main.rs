@@ -8,7 +8,17 @@ use std::fs;
 use std::io::{self, Write};
 use std::time::Duration;
 mod dyncalls;
+
+fn init_logger() {
+    let env = env_logger::Env::default().default_filter_or("warn");
+    let mut builder = env_logger::Builder::from_env(env);
+    builder.format_timestamp(None);
+    let _ = builder.try_init();
+}
+
 fn main() {
+    init_logger();
+
     // Set up panic hook to ensure raw mode is disabled on panic
     std::panic::set_hook(Box::new(|panic_info| {
         let _ = disable_raw_mode();
@@ -1712,6 +1722,26 @@ struct Interpreter {
     resume_line: Option<usize>,
 }
 
+fn normalize_xfn_defstr(defstr: &str) -> String {
+    let parts: Vec<&str> = defstr.split('|').collect();
+    if parts.len() < 4 {
+        return defstr.to_string();
+    }
+
+    let args_norm = if parts[2].is_empty() {
+        String::new()
+    } else {
+        parts[2]
+            .split(',')
+            .map(|arg| if arg == "str" { "cstr" } else { arg })
+            .collect::<Vec<_>>()
+            .join(",")
+    };
+    let ret_norm = if parts[3] == "str" { "cstr" } else { parts[3] };
+
+    format!("{}|{}|{}|{}|", parts[0], parts[1], args_norm, ret_norm)
+}
+
 impl Interpreter {
     fn new() -> Self {
         Interpreter {
@@ -2457,7 +2487,8 @@ impl Interpreter {
                     .insert(name.clone(), (param.clone(), expr.clone()));
             }
             Statement::DefXfn { name, defstr } => {
-                let fdef = DynCaller::define_function_by_str(defstr).unwrap();
+                //let normalized_defstr = normalize_xfn_defstr(defstr);
+                let fdef = DynCaller::define_function_by_str(&defstr).unwrap();
 
                 self.external_functions.insert(name.clone(), fdef);
             }
@@ -3201,7 +3232,7 @@ impl Interpreter {
                                     let arg_value = self.evaluate_expr(&arg_processed);
                                     arg_values.push(arg_value);
                                 }
-                                self.handle_external_call(&fdef, arg_values, &mut result);
+                                self.handle_external_call(&fdef, &args, arg_values, &mut result);
                                 // let mut invoke = fdef.prep();
                                 // match arg_value {
                                 //     Value::Number(num) => invoke.push_arg(&(num as i64)),
