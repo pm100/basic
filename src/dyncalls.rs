@@ -283,15 +283,20 @@ impl Interpreter {
         // Push args in order, using push_mut_arg for OCString and Pointer(numeric) slots
         for (i, arg_value) in arg_values.into_iter().enumerate() {
             if let Some(struct_arg) = struct_args.get_mut(i).and_then(Option::as_mut) {
-                match struct_arg {
+                let push_result = match struct_arg {
                     StructArg::ByValue(value) => invoke.push_arg(value),
                     StructArg::ByPointer { value, .. } => invoke.push_mut_arg(value),
+                };
+                if let Err(e) = push_result {
+                    eprintln!("Error pushing struct argument {}: {}", i, e);
+                    result.push(Token::Number("0".to_string()));
+                    return;
                 }
                 continue;
             }
 
             if let Some(ref mut out_num) = out_nums[i] {
-                match out_num {
+                let push_result = match out_num {
                     OutNum::Char(v) => invoke.push_mut_arg(v.as_mut()),
                     OutNum::I16(v) => invoke.push_mut_arg(v.as_mut()),
                     OutNum::U16(v) => invoke.push_mut_arg(v.as_mut()),
@@ -301,18 +306,28 @@ impl Interpreter {
                     OutNum::U64(v) => invoke.push_mut_arg(v.as_mut()),
                     OutNum::F32(v) => invoke.push_mut_arg(v.as_mut()),
                     OutNum::F64(v) => invoke.push_mut_arg(v.as_mut()),
+                };
+                if let Err(e) = push_result {
+                    eprintln!("Error pushing output argument {}: {}", i, e);
+                    result.push(Token::Number("0".to_string()));
+                    return;
                 }
                 continue;
             }
-            match arg_value {
+            let push_result = match arg_value {
                 Value::Number(num) => invoke.push_arg(&(num as i64)),
                 Value::String(s) => {
                     if let Some(ref mut oc_str) = oc_strings[i] {
-                        invoke.push_mut_arg(oc_str);
+                        invoke.push_mut_arg(oc_str)
                     } else {
-                        invoke.push_arg(&s);
+                        invoke.push_arg(&s)
                     }
                 }
+            };
+            if let Err(e) = push_result {
+                eprintln!("Error pushing argument {}: {}", i, e);
+                result.push(Token::Number("0".to_string()));
+                return;
             }
         }
 
