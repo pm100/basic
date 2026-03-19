@@ -172,6 +172,7 @@ fn result_to_tokens(ret: &ArgVal, result: &mut Vec<Token>) {
             let string_val = unsafe { (*(*s)).clone() };
             result.push(Token::StringLiteral(string_val));
         }
+        ArgVal::Pointer(p) => result.push(Token::Number((*p as i64).to_string())),
         _ => result.push(Token::Number("0".to_string())),
     }
 }
@@ -315,7 +316,16 @@ impl Interpreter {
                 continue;
             }
             let push_result = match arg_value {
-                Value::Number(num) => invoke.push_arg(&(num as i64)),
+                Value::Number(num) => {
+                    let ptr_slot = i < fdef.get_arg_count()
+                        && matches!(fdef.get_arg_type(i), ArgType::OpaquePointer);
+                    if ptr_slot {
+                        let p = num as i64 as *mut std::ffi::c_void;
+                        invoke.push_arg(&ArgVal::Pointer(p))
+                    } else {
+                        invoke.push_arg(&(num as i64))
+                    }
+                }
                 Value::String(s) => {
                     if let Some(ref mut oc_str) = oc_strings[i] {
                         invoke.push_mut_arg(oc_str)
@@ -333,7 +343,6 @@ impl Interpreter {
 
         let ret = invoke.call();
         result_to_tokens(&ret, result);
-        println!("External FN returned {:?}", ret);
 
         // Write back updated OCString buffers to the corresponding BASIC variables
         for (i, oc_str_opt) in oc_strings.into_iter().enumerate() {

@@ -440,6 +440,9 @@ fn tokenize(input: &str) -> Vec<Token> {
             tokens.push(Token::Newline);
         } else if c.is_whitespace() {
             if !current.is_empty() {
+                if current == "REM" {
+                    return tokens; // rest of line is a comment
+                }
                 push_token(&mut tokens, &current, &keywords);
                 current.clear();
             }
@@ -2222,6 +2225,7 @@ impl Interpreter {
                 // Handle empty PRINT (just print newline)
                 if items.is_empty() {
                     println!();
+                    let _ = io::stdout().flush();
                     return;
                 }
 
@@ -2294,6 +2298,7 @@ impl Interpreter {
 
                 if !*no_newline {
                     println!();
+                    io::stdout().flush().unwrap();
                 } else {
                     io::stdout().flush().unwrap();
                 }
@@ -3992,3 +3997,4 @@ impl Interactive {
         println!("Goodbye!");
     }
 }
+
