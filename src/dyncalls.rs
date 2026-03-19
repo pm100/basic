@@ -342,6 +342,12 @@ impl Interpreter {
         }
 
         let ret = invoke.call();
+        // If the errno flag was set, store the captured value in the BASIC
+        // variable ERRNO so scripts can inspect it after the call.
+        if let Some(errno_val) = invoke.last_errno() {
+            self.variables
+                .insert("ERRNO".to_string(), Value::Number(errno_val as f64));
+        }
         result_to_tokens(&ret, result);
 
         // Write back updated OCString buffers to the corresponding BASIC variables
