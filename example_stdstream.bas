@@ -1,8 +1,8 @@
-10  REM Standard stream example - write to stderr/stdout via C library (ucrtbase.dll)
-20  REM On Windows, call __acrt_iob_func(n) to get the FILE* for a standard stream:
+10  REM Standard stream example - Windows version (ucrtbase.dll)
+20  REM Call __acrt_iob_func(n) to get the FILE* for a standard stream:
 30  REM   0=stdin, 1=stdout, 2=stderr
-40  REM Then pass the returned pointer to fputs/fflush etc. from the same DLL.
-50  PRINT "Standard stream example"
+40  REM All FILE* I/O must use the same DLL (ucrtbase.dll) to avoid CRT mismatch.
+50  PRINT "Standard stream example (Windows)"
 60  DEF XFN c_iob("ucrtbase.dll|__acrt_iob_func|u32|ptr|coerce")
 70  DEF XFN c_fputs("ucrtbase.dll|fputs|cstr,ptr|i32|")
 80  DEF XFN c_fflush("ucrtbase.dll|fflush|ptr|i32|")
