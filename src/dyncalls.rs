@@ -341,7 +341,14 @@ impl Interpreter {
             }
         }
 
-        let ret = invoke.call();
+        let ret = match invoke.call() {
+            Ok(val) => val,
+            Err(e) => {
+                eprintln!("Error calling external function: {}", e);
+                result.push(Token::Number("0".to_string()));
+                return;
+            }
+        };
         // If the errno flag was set, store the captured value in the BASIC
         // variable ERRNO so scripts can inspect it after the call.
         if let Some(errno_val) = invoke.last_errno() {

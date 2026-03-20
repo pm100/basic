@@ -2493,7 +2493,7 @@ impl Interpreter {
             }
             Statement::DefXfn { name, defstr } => {
                 //let normalized_defstr = normalize_xfn_defstr(defstr);
-                let fdef = DynCaller::define_function_by_str(&defstr).unwrap();
+                let fdef = DynCaller::define_function(&defstr).unwrap();
 
                 self.external_functions.insert(name.clone(), fdef);
             }
