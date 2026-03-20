@@ -10,7 +10,7 @@
 100 LET TM(7) = 0
 110 LET TM(8) = -1
 120 DEF XFN mktime("msvcrt.dll|mktime|*{i32,i32,i32,i32,i32,i32,i32,i32,i32}|i64|")
-130 DEF XFN strftime("msvcrt.dll|strftime|ocstr=arg1,u64,cstr,*{i32,i32,i32,i32,i32,i32,i32,i32,i32}|u64|")
+130 DEF XFN strftime("msvcrt.dll|strftime|ocstr=arg1,u64,cstr,*{i32,i32,i32,i32,i32,i32,i32,i32,i32}|u64|coerce")
 140 LET OUT$ = ""
 150 LET TS = FN mktime(TM)
 160 LET N = FN strftime(OUT$, 64, "%Y-%m-%d %H:%M:%S", TM)
@@ -20,3 +20,8 @@
 200 PRINT "weekday: "; TM(6)
 210 PRINT "yearday: "; TM(7)
 220 END
+REM expect: timestamp: 1710170130
+REM expect: written: 19
+REM expect: formatted: 2024-03-11 08:15:30
+REM expect: weekday: 1
+REM expect: yearday: 70

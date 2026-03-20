@@ -11,3 +11,7 @@
 110 PRINT "sscanf returned: "; n2
 120 PRINT "Parsed integer: "; y
 130 END
+REM expect: sscanf returned: 1
+REM expect: Parsed integer: 42
+REM expect: sscanf returned: 1
+REM expect: Parsed integer: 123

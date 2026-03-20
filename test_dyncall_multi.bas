@@ -7,3 +7,6 @@
 70 PRINT "strcmp('apple', 'banana') = "; result2
 80 LET result3 = FN strcmp("zebra", "apple")
 90 PRINT "strcmp('zebra', 'apple') = "; result3
+REM expect: strcmp('hello', 'hello') = 0
+REM expect: strcmp('apple', 'banana') = -1
+REM expect: strcmp('zebra', 'apple') = 1
