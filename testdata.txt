@@ -1,3 +1,0 @@
-First line
-Second   line
-Numbers:      123           456           789

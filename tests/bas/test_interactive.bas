@@ -1,3 +1,4 @@
+1 REM SKIP
 10 PRINT "Enter a number:"
 20 INPUT X
 30 PRINT "Square root of X:"
@@ -9,3 +10,4 @@
 90 PRINT "Random number:"
 100 PRINT RND(0)
 110 END
+

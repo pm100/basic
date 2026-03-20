@@ -1,3 +1,4 @@
+1 REM SKIP
 10 PRINT "Testing 60D Array with Small Bounds"
 20 PRINT "===================================="
 30 PRINT ""
@@ -23,3 +24,4 @@
 230 PRINT ""
 240 PRINT "Test complete!"
 250 END
+

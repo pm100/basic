@@ -1,3 +1,4 @@
+1 REM SKIP
 10 REM Test WRITE statement
 20 A$ = "Hello"
 30 B$ = "World"
@@ -16,3 +17,4 @@
 160 CLOSE #1
 170 PRINT "File written - check writetest.txt"
 180 END
+

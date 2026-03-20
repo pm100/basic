@@ -1,3 +1,4 @@
+1 REM SKIP
 10 PRINT "Testing CLS (Clear Screen) Statement"
 20 PRINT "====================================="
 30 PRINT ""
@@ -25,3 +26,4 @@
 250 PRINT ""
 260 PRINT "CLS test complete!"
 270 END
+

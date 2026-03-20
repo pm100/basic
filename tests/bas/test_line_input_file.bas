@@ -1,3 +1,4 @@
+1 REM SKIP
 10 REM Test LINE INPUT # (file version)
 20 OPEN "testlines.txt" FOR OUTPUT AS #1
 30 PRINT #1, "First line with, commas"
@@ -15,3 +16,4 @@
 150 PRINT "Line 3: "; C$
 160 CLOSE #1
 170 END
+

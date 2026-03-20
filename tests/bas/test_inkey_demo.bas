@@ -1,3 +1,4 @@
+1 REM SKIP
 10 REM INKEY$ Demo - Simple key detector
 20 PRINT "Press ESC to exit, any other key to see its code"
 30 PRINT

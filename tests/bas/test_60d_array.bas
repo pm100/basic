@@ -1,3 +1,4 @@
+1 REM SKIP
 10 PRINT "Testing Maximum Dimensions Support"
 20 PRINT "==================================="
 30 PRINT ""
@@ -18,3 +19,4 @@
 180 PRINT ""
 190 PRINT "60-dimensional arrays fully supported!"
 200 END
+

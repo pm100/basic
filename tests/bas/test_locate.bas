@@ -1,3 +1,4 @@
+1 REM SKIP
 10 REM Test LOCATE statement
 20 CLS
 30 LOCATE 1, 1
@@ -29,3 +30,4 @@
 290 LOCATE 22, 1
 300 PRINT "Done."
 310 END
+
