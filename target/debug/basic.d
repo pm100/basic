@@ -1,1 +1,1 @@
-D:\projects\rust\basic\basic\target\debug\basic.exe: D:\projects\rust\basic\basic\src\main.rs
+C:\work\forks\basic\target\debug\basic.exe: C:\work\dyncall\src\args.rs C:\work\dyncall\src\caller.rs C:\work\dyncall\src\coerce.rs C:\work\dyncall\src\dylib.rs C:\work\dyncall\src\invoke.rs C:\work\dyncall\src\lib.rs C:\work\dyncall\src\structs.rs C:\work\forks\basic\src\dyncalls.rs C:\work\forks\basic\src\main.rs

@@ -257,6 +257,10 @@ enum Statement {
     Resume {
         next: bool,
     },
+    // Standalone expression statement (e.g. `fn mci(...)` for side effects)
+    Expr {
+        expr: Vec<Token>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -1647,6 +1651,17 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                     statements.push(Statement::End);
                     i += 1;
                 }
+                // Standalone FN call for side effects: `fn mci(...)` etc.
+                "FN" => {
+                    let mut expr = vec![tokens[i].clone()];
+                    let mut j = i + 1;
+                    while j < tokens.len() && tokens[j] != Token::Newline {
+                        expr.push(tokens[j].clone());
+                        j += 1;
+                    }
+                    statements.push(Statement::Expr { expr });
+                    i = j;
+                }
                 _ => {}
             }
         } else if let Token::Identifier(var) = &tokens[i] {
@@ -2729,6 +2744,11 @@ impl Interpreter {
             Statement::Resume { .. } => {
                 // RESUME is handled in run() method, not here
                 // This shouldn't be executed directly
+            }
+            Statement::Expr { expr } => {
+                // Evaluate for side effects, discard return value
+                let processed = self.process_functions_and_parentheses(expr);
+                self.evaluate_expr(&processed);
             }
             _ => {}
         }

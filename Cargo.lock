@@ -138,7 +138,6 @@ dependencies = [
  "enum-as-inner",
  "libc",
  "libffi",
- "libloading",
  "log",
 ]
 
@@ -263,16 +262,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "90c6c6e17136d4bc439d43a2f3c6ccf0731cccc016d897473a29791d3c2160c3"
 dependencies = [
  "cc",
-]
-
-[[package]]
-name = "libloading"
-version = "0.8.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7c4b02199fee7c5d21a5ae7d8cfa79a6ef5bb2fc834d6e9058e89c825efdc55"
-dependencies = [
- "cfg-if",
- "windows-link",
 ]
 
 [[package]]
