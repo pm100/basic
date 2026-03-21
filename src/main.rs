@@ -1740,25 +1740,6 @@ struct Interpreter {
     resume_line: Option<usize>,
 }
 
-fn normalize_xfn_defstr(defstr: &str) -> String {
-    let parts: Vec<&str> = defstr.split('|').collect();
-    if parts.len() < 4 {
-        return defstr.to_string();
-    }
-
-    let args_norm = if parts[2].is_empty() {
-        String::new()
-    } else {
-        parts[2]
-            .split(',')
-            .map(|arg| if arg == "str" { "cstr" } else { arg })
-            .collect::<Vec<_>>()
-            .join(",")
-    };
-    let ret_norm = if parts[3] == "str" { "cstr" } else { parts[3] };
-
-    format!("{}|{}|{}|{}|", parts[0], parts[1], args_norm, ret_norm)
-}
 
 impl Interpreter {
     fn new() -> Self {
@@ -2507,7 +2488,6 @@ impl Interpreter {
                     .insert(name.clone(), (param.clone(), expr.clone()));
             }
             Statement::DefXfn { name, defstr } => {
-                //let normalized_defstr = normalize_xfn_defstr(defstr);
                 let fdef = DynCaller::define_function(&defstr).unwrap();
 
                 self.external_functions.insert(name.clone(), fdef);
