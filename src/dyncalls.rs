@@ -44,27 +44,6 @@ fn struct_array_name(raw_arg: &[Token]) -> Option<&str> {
     }
 }
 
-fn push_number_field(struct_value: &mut StructValue, field_type: &ArgType, number: f64) -> Result<(), String> {
-    let result = match field_type {
-        ArgType::Char => struct_value.push_field(&(number as u8)),
-        ArgType::I16 => struct_value.push_field(&(number as i16)),
-        ArgType::U16 => struct_value.push_field(&(number as u16)),
-        ArgType::I32 => struct_value.push_field(&(number as i32)),
-        ArgType::U32 => struct_value.push_field(&(number as u32)),
-        ArgType::I64 => struct_value.push_field(&(number as i64)),
-        ArgType::U64 => struct_value.push_field(&(number as u64)),
-        ArgType::F32 => struct_value.push_field(&(number as f32)),
-        ArgType::F64 => struct_value.push_field(&number),
-        _ => {
-            return Err(format!(
-                "unsupported BASIC struct field type: {:?}",
-                field_type
-            ))
-        }
-    };
-    result.map_err(|err| err.to_string())
-}
-
 fn build_struct_value(arg_type: &ArgType, array: &Array) -> Result<StructValue, String> {
     let mut struct_value = StructValue::new(arg_type).map_err(|err| err.to_string())?;
     let field_count = struct_value.field_count();
@@ -77,11 +56,6 @@ fn build_struct_value(arg_type: &ArgType, array: &Array) -> Result<StructValue, 
     }
 
     for index in 0..field_count {
-        let field_type = struct_value
-            .struct_type()
-            .field_type(index)
-            .cloned()
-            .ok_or_else(|| format!("struct field {} is out of range", index))?;
         let number = match &array.data[index] {
             Value::Number(number) => *number,
             Value::String(_) => {
@@ -91,52 +65,12 @@ fn build_struct_value(arg_type: &ArgType, array: &Array) -> Result<StructValue, 
                 ))
             }
         };
-        push_number_field(&mut struct_value, &field_type, number)?;
+        struct_value
+            .push_field_coerced(&number)
+            .map_err(|e| e.to_string())?;
     }
 
     Ok(struct_value)
-}
-
-fn read_struct_field_as_number(struct_value: &StructValue, index: usize) -> Result<f64, String> {
-    let field_type = struct_value
-        .struct_type()
-        .field_type(index)
-        .ok_or_else(|| format!("struct field {} is out of range", index))?;
-
-    let result = match field_type {
-        ArgType::Char => struct_value
-            .read_field::<u8>(index)
-            .map(|value| value as f64),
-        ArgType::I16 => struct_value
-            .read_field::<i16>(index)
-            .map(|value| value as f64),
-        ArgType::U16 => struct_value
-            .read_field::<u16>(index)
-            .map(|value| value as f64),
-        ArgType::I32 => struct_value
-            .read_field::<i32>(index)
-            .map(|value| value as f64),
-        ArgType::U32 => struct_value
-            .read_field::<u32>(index)
-            .map(|value| value as f64),
-        ArgType::I64 => struct_value
-            .read_field::<i64>(index)
-            .map(|value| value as f64),
-        ArgType::U64 => struct_value
-            .read_field::<u64>(index)
-            .map(|value| value as f64),
-        ArgType::F32 => struct_value
-            .read_field::<f32>(index)
-            .map(|value| value as f64),
-        ArgType::F64 => struct_value.read_field::<f64>(index),
-        _ => {
-            return Err(format!(
-                "unsupported BASIC struct field type: {:?}",
-                field_type
-            ))
-        }
-    };
-    result.map_err(|err| err.to_string())
 }
 
 fn write_struct_back_to_array(array: &mut Array, struct_value: &StructValue) -> Result<(), String> {
@@ -150,7 +84,9 @@ fn write_struct_back_to_array(array: &mut Array, struct_value: &StructValue) -> 
     }
 
     for index in 0..field_count {
-        let value = read_struct_field_as_number(struct_value, index)?;
+        let value = struct_value
+            .read_field_coerced::<f64>(index)
+            .map_err(|e| e.to_string())?;
         array.data[index] = Value::Number(value);
     }
 
