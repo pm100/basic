@@ -1793,9 +1793,8 @@ impl Interpreter {
         self.data_values.clear();
         self.data_pointer = 0;
         for &line_num in &lines {
-            if let Some(stmt) = self.program.get(&line_num) {
-                if let Statement::Data { values } = stmt {
-                    for token in values {
+            if let Some(Statement::Data { values }) = self.program.get(&line_num) {
+                for token in values {
                         match token {
                             Token::Number(n) => {
                                 if let Ok(num) = n.parse::<f64>() {
@@ -1808,7 +1807,6 @@ impl Interpreter {
                             _ => {}
                         }
                     }
-                }
             }
         }
 
@@ -2469,18 +2467,11 @@ impl Interpreter {
                     .insert(var.clone(), Value::String(chars.iter().collect()));
             }
             Statement::Randomize { seed } => {
-                if let Some(seed_expr) = seed {
-                    let seed_val = self.evaluate_expr(seed_expr);
-                    if let Value::Number(n) = seed_val {
-                        // Seed the RNG using a simple method
-                        // Note: ThreadRng doesn't support explicit seeding, so we'll just consume some values
-                        let iterations = (n.abs() as usize) % 1000;
-                        for _ in 0..iterations {
-                            self.rng.gen::<f64>();
-                        }
+                if let Some(Value::Number(n)) = seed.as_ref().map(|e| self.evaluate_expr(e)) {
+                    let iterations = (n.abs() as usize) % 1000;
+                    for _ in 0..iterations {
+                        self.rng.gen::<f64>();
                     }
-                } else {
-                    // RANDOMIZE without argument uses current time (already seeded by ThreadRng)
                 }
             }
             Statement::DefFn { name, param, expr } => {
@@ -2488,7 +2479,7 @@ impl Interpreter {
                     .insert(name.clone(), (param.clone(), expr.clone()));
             }
             Statement::DefXfn { name, defstr } => {
-                let fdef = DynCaller::define_function(&defstr).unwrap();
+                let fdef = DynCaller::define_function(defstr).unwrap();
 
                 self.external_functions.insert(name.clone(), fdef);
             }
@@ -2567,7 +2558,6 @@ impl Interpreter {
                         .truncate(true)
                         .open(&filename_str),
                     "APPEND" => OpenOptions::new()
-                        .write(true)
                         .create(true)
                         .append(true)
                         .open(&filename_str),
@@ -2683,13 +2673,11 @@ impl Interpreter {
                         }
                     }
                     // Add newline if not suppressed
-                    if !items.is_empty() {
-                        if !matches!(
-                            items.last(),
-                            Some(PrintItem::Comma) | Some(PrintItem::Semicolon)
-                        ) {
-                            writeln!(file).ok();
-                        }
+                    if !items.is_empty() && !matches!(
+                        items.last(),
+                        Some(PrintItem::Comma) | Some(PrintItem::Semicolon)
+                    ) {
+                        writeln!(file).ok();
                     }
                 }
             }
@@ -2841,7 +2829,7 @@ impl Interpreter {
                 Value::String(s) => Value::String(s),
             };
 
-            match (left_compare) {
+            match left_compare {
                 Value::String(ref s) if s == "27" => {
                     // Debug print
                     println!("Comparing: {:?} {} {:?}", left_compare, op, right_compare);
@@ -3282,7 +3270,7 @@ impl Interpreter {
                         && (i + 1 >= tokens.len() || tokens[i + 1] != Token::LeftParen)
                     {
                         // INKEY$ with no arguments
-                        let func_result = self.evaluate_string_function(&func_name, &[]);
+                        let func_result = self.evaluate_string_function(func_name, &[]);
                         match func_result {
                             Value::String(s) => result.push(Token::StringLiteral(s)),
                             Value::Number(n) => result.push(Token::Number(n.to_string())),
@@ -3303,7 +3291,7 @@ impl Interpreter {
 
                         // Parse arguments inside function
                         let args_tokens = &tokens[i + 2..j - 1];
-                        let func_result = self.evaluate_string_function(&func_name, args_tokens);
+                        let func_result = self.evaluate_string_function(func_name, args_tokens);
 
                         // Push result as appropriate token
                         match func_result {
@@ -3336,7 +3324,7 @@ impl Interpreter {
                         let arg_value = self.evaluate_expr(&arg_processed);
 
                         if let Value::Number(arg) = arg_value {
-                            let func_result = self.evaluate_function(&func_name, arg);
+                            let func_result = self.evaluate_function(func_name, arg);
                             result.push(Token::Number(func_result.to_string()));
                         }
                         i = j;
@@ -3801,31 +3789,25 @@ impl Interpreter {
             }
             "INKEY$" => {
                 let mut keypressed: Value = Value::String(String::from(""));
-                let test: Result<bool, io::Error> =
-                    crossterm::event::poll(Duration::from_millis(0));
-                if test.is_ok() && test.unwrap() {
-                    let key_event: Result<crossterm::event::Event, io::Error> =
-                        crossterm::event::read();
-                    if key_event.is_ok() {
-                        if let crossterm::event::Event::Key(key) = key_event.unwrap() {
-                            if key.code == KeyCode::Char('c')
-                                && key
-                                    .modifiers
-                                    .contains(crossterm::event::KeyModifiers::CONTROL)
-                            {
-                                // Handle Ctrl+C
-                                println!("^C detected, exiting.");
-                                std::process::exit(0);
-                            } else {
-                                keypressed = match key.code {
-                                    KeyCode::Esc => Value::String("\x1b".to_string()),
-                                    KeyCode::Enter => Value::String("\r".to_string()),
-                                    KeyCode::Backspace => Value::String("\x08".to_string()),
-                                    KeyCode::Tab => Value::String("\t".to_string()),
-                                    KeyCode::Char(c) => Value::String(c.to_string()),
-                                    _ => Value::String(String::from("")),
-                                };
-                            }
+                if let Ok(true) = crossterm::event::poll(Duration::from_millis(0)) {
+                    if let Ok(crossterm::event::Event::Key(key)) = crossterm::event::read() {
+                        if key.code == KeyCode::Char('c')
+                            && key
+                                .modifiers
+                                .contains(crossterm::event::KeyModifiers::CONTROL)
+                        {
+                            // Handle Ctrl+C
+                            println!("^C detected, exiting.");
+                            std::process::exit(0);
+                        } else {
+                            keypressed = match key.code {
+                                KeyCode::Esc => Value::String("\x1b".to_string()),
+                                KeyCode::Enter => Value::String("\r".to_string()),
+                                KeyCode::Backspace => Value::String("\x08".to_string()),
+                                KeyCode::Tab => Value::String("\t".to_string()),
+                                KeyCode::Char(c) => Value::String(c.to_string()),
+                                _ => Value::String(String::from("")),
+                            };
                         }
                     }
                 }

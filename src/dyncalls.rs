@@ -163,7 +163,7 @@ impl Interpreter {
         }
 
         let mut struct_args: Vec<Option<StructArg>> = (0..arg_count).map(|_| None).collect();
-        for i in 0..arg_count {
+        for (i, slot) in struct_args.iter_mut().enumerate() {
             if i >= fdef.get_arg_count() {
                 continue;
             }
@@ -205,7 +205,7 @@ impl Interpreter {
                 }
             };
 
-            struct_args[i] = Some(match arg_type {
+            *slot = Some(match arg_type {
                 ArgType::Struct(_) => StructArg::ByValue(struct_value),
                 ArgType::Pointer(inner) if matches!(inner.as_ref(), ArgType::Struct(_)) => {
                     StructArg::ByPointer {
