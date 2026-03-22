@@ -1788,6 +1788,9 @@ struct Interpreter {
 
 impl Interpreter {
     fn new() -> Self {
+        // BASIC stores all numbers as f64; coerce enables seamless calls to
+        // C functions that expect i32/u32/etc without user-visible type errors.
+        DynCaller::set_default_coerce(true);
         Interpreter {
             variables: HashMap::new(),
             program: HashMap::new(),

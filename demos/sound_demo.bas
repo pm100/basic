@@ -1,4 +1,4 @@
-10 def xfn mci("winmm.dll|mciSendStringA|cstr,ptr,u32,ptr|u32|coerce")
+10 def xfn mci("winmm.dll|mciSendStringA|cstr,ptr,u32,ptr|u32|")
 20 print "Playing 4 sounds..."
 30 fn mci("open C:/Windows/Media/tada.wav type waveaudio alias snd", 0, 0, 0)
 40 fn mci("play snd wait", 0, 0, 0)

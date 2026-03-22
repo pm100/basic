@@ -3,7 +3,7 @@
 30  REM   0=stdin, 1=stdout, 2=stderr
 40  REM All FILE* I/O must use the same DLL (ucrtbase.dll) to avoid CRT mismatch.
 50  PRINT "Standard stream example (Windows)"
-60  DEF XFN c_iob("ucrtbase.dll|__acrt_iob_func|u32|ptr|coerce")
+60  DEF XFN c_iob("ucrtbase.dll|__acrt_iob_func|u32|ptr|")
 70  DEF XFN c_fputs("ucrtbase.dll|fputs|cstr,ptr|i32|")
 80  DEF XFN c_fflush("ucrtbase.dll|fflush|ptr|i32|")
 90  REM Get FILE* for stderr (index 2) and stdout (index 1)

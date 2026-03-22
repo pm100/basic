@@ -1,0 +1,12 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.11s
+     Running `target\debug\basic.exe tests/bas/test_dyncall_localeconv.bas`
+[DEBUG] ret variant: StructValue(StructValue { layout: StructType { fields: [StructField { arg_type: CString, offset: 0, size: 8 }, StructField { arg_type: CString, offset: 8, size: 8 }], size: 16, alignment: 8 }, bytes: [240, 78, 10, 153, 248, 127, 0, 0, 242, 78, 10, 153, 248, 127, 0, 0], next_field: 0 })
+[DEBUG] fdef.get_arg_count()=0, raw_args.len()=1
+[DEBUG] extra_idx=0
+[DEBUG] tokens=[Identifier("LC")]
+[DEBUG] array_name=LC
+[DEBUG] array found, data.len()=2
+[DEBUG] writeback ok, data[0]=String(".")
+Error: Array subscript out of bounds or dimension mismatch
+Error: Array subscript out of bounds or dimension mismatch
+Error: Array subscript out of bounds or dimension mismatch

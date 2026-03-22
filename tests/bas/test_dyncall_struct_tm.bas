@@ -10,7 +10,7 @@
 100 LET TM(7) = 0
 110 LET TM(8) = -1
 120 DEF XFN mktime("msvcrt.dll|mktime|*{i32,i32,i32,i32,i32,i32,i32,i32,i32}|i64|")
-130 DEF XFN strftime("msvcrt.dll|strftime|ocstr=arg1,u64,cstr,*{i32,i32,i32,i32,i32,i32,i32,i32,i32}|u64|coerce")
+130 DEF XFN strftime("msvcrt.dll|strftime|ocstr=arg1,u64,cstr,*{i32,i32,i32,i32,i32,i32,i32,i32,i32}|u64|")
 140 LET OUT$ = ""
 150 LET TS = FN mktime(TM)
 160 LET N = FN strftime(OUT$, 64, "%Y-%m-%d %H:%M:%S", TM)

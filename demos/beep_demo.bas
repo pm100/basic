@@ -1,4 +1,4 @@
-10 def xfn beep("kernel32.dll|Beep|u32,u32|i32|coerce")
+10 def xfn beep("kernel32.dll|Beep|u32,u32|i32|")
 20 rem Play a simple melody using kernel32 Beep(frequency, duration_ms)
 30 rem Notes: C4=262 D4=294 E4=330 F4=349 G4=392 A4=440 B4=494 C5=523
 40 print "Playing melody..."
