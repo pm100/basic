@@ -83,7 +83,7 @@ fn main() {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 enum Token {
     Keyword(String),
     Identifier(String),
@@ -105,6 +105,36 @@ enum Token {
     Not,
     Mod,
     Colon,
+    Struct(dyncall::StructValue), // opaque struct return value from a C call
+}
+
+impl PartialEq for Token {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Token::Keyword(a), Token::Keyword(b)) => a == b,
+            (Token::Identifier(a), Token::Identifier(b)) => a == b,
+            (Token::Number(a), Token::Number(b)) => a == b,
+            (Token::StringLiteral(a), Token::StringLiteral(b)) => a == b,
+            (Token::Operator(a), Token::Operator(b)) => a == b,
+            (Token::Comparison(a), Token::Comparison(b)) => a == b,
+            (Token::Equal, Token::Equal) => true,
+            (Token::LeftParen, Token::LeftParen) => true,
+            (Token::RightParen, Token::RightParen) => true,
+            (Token::Newline, Token::Newline) => true,
+            (Token::To, Token::To) => true,
+            (Token::Step, Token::Step) => true,
+            (Token::Function(a), Token::Function(b)) => a == b,
+            (Token::Comma, Token::Comma) => true,
+            (Token::Semicolon, Token::Semicolon) => true,
+            (Token::And, Token::And) => true,
+            (Token::Or, Token::Or) => true,
+            (Token::Not, Token::Not) => true,
+            (Token::Mod, Token::Mod) => true,
+            (Token::Colon, Token::Colon) => true,
+            (Token::Struct(_), Token::Struct(_)) => false, // opaque; not comparable
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -267,6 +297,7 @@ enum Statement {
 enum Value {
     Number(f64),
     String(String),
+    Struct(dyncall::StructValue), // opaque struct returned from a C call
 }
 
 #[derive(Debug, Clone)]
@@ -287,7 +318,8 @@ struct WhileLoop {
 struct Array {
     lower_bounds: Vec<usize>, // Lower bound for each dimension
     upper_bounds: Vec<usize>, // Upper bound for each dimension
-    data: Vec<Value>,         // Flattened data
+    data: Vec<Value>,         // Flattened data (unused when struct_val is Some)
+    struct_val: Option<dyncall::StructValue>, // set when this array backs a C struct return
 }
 
 impl Array {
@@ -301,6 +333,19 @@ impl Array {
             lower_bounds,
             upper_bounds,
             data: vec![Value::Number(0.0); total_size],
+            struct_val: None,
+        }
+    }
+
+    /// Create an array backed by a C struct return value.
+    /// Field access is forwarded to [`dyncall::StructValue::script_read`].
+    fn from_struct_val(sv: dyncall::StructValue) -> Self {
+        let n = sv.field_count().saturating_sub(1);
+        Array {
+            lower_bounds: vec![0],
+            upper_bounds: vec![n],
+            data: vec![],
+            struct_val: Some(sv),
         }
     }
 
@@ -2165,7 +2210,16 @@ impl Interpreter {
             }
             Statement::Let { var, expr } => {
                 let value = self.evaluate_expr(expr);
-                self.variables.insert(var.clone(), value);
+                match value {
+                    Value::Struct(sv) => {
+                        // Struct return from a C call — store as a struct-backed array so
+                        // that field reads (e.g. lc(0)) are forwarded to dyncall.
+                        self.arrays.insert(var.clone(), Array::from_struct_val(sv));
+                    }
+                    _ => {
+                        self.variables.insert(var.clone(), value);
+                    }
+                }
             }
             Statement::Write { items } => {
                 // WRITE outputs values with commas, strings in quotes
@@ -2176,6 +2230,7 @@ impl Interpreter {
                     let val = self.evaluate_expr(expr);
                     match val {
                         Value::String(s) => print!("\"{}\"", s),
+                        Value::Struct(_) => {}
                         Value::Number(n) => {
                             if n.fract() == 0.0 && n.abs() < 1e10 {
                                 print!("{}", n as i64);
@@ -2203,6 +2258,7 @@ impl Interpreter {
                         }
                         match val {
                             Value::String(s) => write!(file, "\"{}\"", s).ok(),
+                            Value::Struct(_) => None,
                             Value::Number(n) => {
                                 if n.fract() == 0.0 && n.abs() < 1e10 {
                                     write!(file, "{}", *n as i64).ok()
@@ -2272,6 +2328,7 @@ impl Interpreter {
                             let text = match value {
                                 Value::Number(n) => n.to_string(),
                                 Value::String(s) => s,
+                                Value::Struct(_) => String::new(),
                             };
                             print!("{}", text);
                             column += text.len();
@@ -2426,6 +2483,7 @@ impl Interpreter {
                 let s = match current_val {
                     Value::String(s) => s,
                     Value::Number(n) => n.to_string(),
+                    Value::Struct(_) => String::new(),
                 };
 
                 // Evaluate start position and length
@@ -2446,6 +2504,7 @@ impl Interpreter {
                 let new_str = match new_val {
                     Value::String(s) => s,
                     Value::Number(n) => n.to_string(),
+                    Value::Struct(_) => String::new(),
                 };
 
                 // Replace the substring
@@ -2547,6 +2606,7 @@ impl Interpreter {
                 let filename_str = match filename_val {
                     Value::String(s) => s,
                     Value::Number(n) => n.to_string(),
+                    Value::Struct(_) => String::new(),
                 };
 
                 use std::fs::OpenOptions;
@@ -2645,6 +2705,7 @@ impl Interpreter {
                                     }
                                 }
                                 Value::String(s) => s,
+                                Value::Struct(_) => String::new(),
                             };
                             outputs.push((output, false, false, false, 0));
                         }
@@ -2823,10 +2884,12 @@ impl Interpreter {
             let left_compare = match left_val {
                 Value::Number(n) => Value::String(n.to_string()),
                 Value::String(s) => Value::String(s),
+                Value::Struct(_) => Value::String(String::new()),
             };
             let right_compare = match right_val {
                 Value::Number(n) => Value::String(n.to_string()),
                 Value::String(s) => Value::String(s),
+                Value::Struct(_) => Value::String(String::new()),
             };
 
             match left_compare {
@@ -2863,6 +2926,9 @@ impl Interpreter {
         if tokens.len() == 1 {
             if let Token::StringLiteral(s) = &tokens[0] {
                 return Value::String(s.clone());
+            }
+            if let Token::Struct(sv) = &tokens[0] {
+                return Value::Struct(sv.clone());
             }
             if let Token::Identifier(id) = &tokens[0] {
                 // Special variables
@@ -2929,10 +2995,13 @@ impl Interpreter {
             return self.evaluate_string_expr(&tokens); // Re-process from original tokens
         }
 
-        // Check if we got a single string result after processing
+        // Check if we got a single result after processing
         if processed_tokens.len() == 1 {
             if let Token::StringLiteral(s) = &processed_tokens[0] {
                 return Value::String(s.clone());
+            }
+            if let Token::Struct(sv) = &processed_tokens[0] {
+                return Value::Struct(sv.clone());
             }
         }
 
@@ -3067,6 +3136,7 @@ impl Interpreter {
             match part {
                 Value::String(s) => result.push_str(&s),
                 Value::Number(n) => result.push_str(&n.to_string()),
+                Value::Struct(_) => {}
             }
         }
 
@@ -3214,6 +3284,7 @@ impl Interpreter {
                                 match func_result {
                                     Value::Number(n) => result.push(Token::Number(n.to_string())),
                                     Value::String(s) => result.push(Token::StringLiteral(s)),
+                                    Value::Struct(sv) => result.push(Token::Struct(sv)),
                                 }
                             } else if let Some(fdef) =
                                 self.external_functions.get(func_name).cloned()
@@ -3274,6 +3345,7 @@ impl Interpreter {
                         match func_result {
                             Value::String(s) => result.push(Token::StringLiteral(s)),
                             Value::Number(n) => result.push(Token::Number(n.to_string())),
+                            Value::Struct(sv) => result.push(Token::Struct(sv)),
                         }
                         i += 1;
                     } else if i + 1 < tokens.len() && tokens[i + 1] == Token::LeftParen {
@@ -3297,6 +3369,7 @@ impl Interpreter {
                         match func_result {
                             Value::String(s) => result.push(Token::StringLiteral(s)),
                             Value::Number(n) => result.push(Token::Number(n.to_string())),
+                            Value::Struct(sv) => result.push(Token::Struct(sv)),
                         }
                         i = j;
                     } else {
@@ -3364,7 +3437,11 @@ impl Interpreter {
 
                     // Get array value
                     let array_value = self.get_array_element(id, &subscripts);
-                    result.push(Token::Number(array_value.to_string()));
+                    match array_value {
+                        Value::Number(n) => result.push(Token::Number(n.to_string())),
+                        Value::String(s) => result.push(Token::StringLiteral(s)),
+                        Value::Struct(sv) => result.push(Token::Struct(sv)),
+                    }
                     i = j;
                 } else {
                     result.push(tokens[i].clone());
@@ -3390,6 +3467,7 @@ impl Interpreter {
                 match value {
                     Value::Number(n) => result.push(Token::Number(n.to_string())),
                     Value::String(s) => result.push(Token::StringLiteral(s)),
+                    Value::Struct(sv) => result.push(Token::Struct(sv)),
                 }
                 i = j;
             } else {
@@ -3515,6 +3593,7 @@ impl Interpreter {
                 match val {
                     Value::String(s) => Value::Number(s.len() as f64),
                     Value::Number(n) => Value::Number(n.to_string().len() as f64),
+                    Value::Struct(_) => Value::Number(0.0),
                 }
             }
             "LEFT$" => {
@@ -3527,6 +3606,7 @@ impl Interpreter {
                 let s = match string_val {
                     Value::String(s) => s,
                     Value::Number(n) => n.to_string(),
+                    Value::Struct(_) => String::new(),
                 };
                 let count = match count_val {
                     Value::Number(n) => n as usize,
@@ -3545,6 +3625,7 @@ impl Interpreter {
                 let s = match string_val {
                     Value::String(s) => s,
                     Value::Number(n) => n.to_string(),
+                    Value::Struct(_) => String::new(),
                 };
                 let count = match count_val {
                     Value::Number(n) => n as usize,
@@ -3569,6 +3650,7 @@ impl Interpreter {
                 let s = match string_val {
                     Value::String(s) => s,
                     Value::Number(n) => n.to_string(),
+                    Value::Struct(_) => String::new(),
                 };
                 let start = match start_val {
                     Value::Number(n) => (n as usize).saturating_sub(1), // BASIC is 1-indexed
@@ -3598,6 +3680,7 @@ impl Interpreter {
                 match val {
                     Value::String(s) => Value::String(s.to_uppercase()),
                     Value::Number(n) => Value::String(n.to_string().to_uppercase()),
+                    Value::Struct(_) => Value::String(String::new()),
                 }
             }
             "LCASE$" => {
@@ -3608,6 +3691,7 @@ impl Interpreter {
                 match val {
                     Value::String(s) => Value::String(s.to_lowercase()),
                     Value::Number(n) => Value::String(n.to_string().to_lowercase()),
+                    Value::Struct(_) => Value::String(String::new()),
                 }
             }
             "INSTR$" => {
@@ -3620,10 +3704,12 @@ impl Interpreter {
                 let haystack = match haystack_val {
                     Value::String(s) => s,
                     Value::Number(n) => n.to_string(),
+                    Value::Struct(_) => String::new(),
                 };
                 let needle = match needle_val {
                     Value::String(s) => s,
                     Value::Number(n) => n.to_string(),
+                    Value::Struct(_) => String::new(),
                 };
 
                 if let Some(pos) = haystack.find(&needle) {
@@ -3647,6 +3733,7 @@ impl Interpreter {
                             0
                         }
                     }
+                    Value::Struct(_) => 0,
                 };
                 Value::String((code as char).to_string())
             }
@@ -3658,8 +3745,8 @@ impl Interpreter {
                 let s = match val {
                     Value::String(s) => s,
                     Value::Number(n) => n.to_string(),
+                    Value::Struct(_) => String::new(),
                 };
-
                 // Get first character's ASCII code
                 if let Some(first_char) = s.chars().next() {
                     Value::Number(first_char as u32 as f64)
@@ -3682,6 +3769,7 @@ impl Interpreter {
                         }
                     }
                     Value::String(s) => Value::String(s),
+                    Value::Struct(_) => Value::String(String::new()),
                 }
             }
             "VAL" => {
@@ -3693,6 +3781,7 @@ impl Interpreter {
                 match val {
                     Value::String(s) => Value::Number(s.trim().parse::<f64>().unwrap_or(0.0)),
                     Value::Number(n) => Value::Number(n),
+                    Value::Struct(_) => Value::Number(0.0),
                 }
             }
             "HEX$" => {
@@ -3706,7 +3795,7 @@ impl Interpreter {
                         let int_val = n.trunc() as i64;
                         Value::String(format!("{:X}", int_val))
                     }
-                    Value::String(_) => Value::String(String::new()),
+                    Value::String(_) | Value::Struct(_) => Value::String(String::new()),
                 }
             }
             "OCT$" => {
@@ -3720,7 +3809,7 @@ impl Interpreter {
                         let int_val = n.trunc() as i64;
                         Value::String(format!("{:o}", int_val))
                     }
-                    Value::String(_) => Value::String(String::new()),
+                    Value::String(_) | Value::Struct(_) => Value::String(String::new()),
                 }
             }
             "SPACE$" => {
@@ -3750,6 +3839,7 @@ impl Interpreter {
                 let ch = match char_val {
                     Value::Number(n) => n as u8 as char,
                     Value::String(s) => s.chars().next().unwrap_or(' '),
+                    Value::Struct(_) => ' ',
                 };
 
                 Value::String(ch.to_string().repeat(count))
@@ -3763,6 +3853,7 @@ impl Interpreter {
                 match val {
                     Value::String(s) => Value::String(s.trim_start().to_string()),
                     Value::Number(n) => Value::String(n.to_string().trim_start().to_string()),
+                    Value::Struct(_) => Value::String(String::new()),
                 }
             }
             "RTRIM$" => {
@@ -3774,6 +3865,7 @@ impl Interpreter {
                 match val {
                     Value::String(s) => Value::String(s.trim_end().to_string()),
                     Value::Number(n) => Value::String(n.to_string().trim_end().to_string()),
+                    Value::Struct(_) => Value::String(String::new()),
                 }
             }
             "TRIM$" => {
@@ -3785,6 +3877,7 @@ impl Interpreter {
                 match val {
                     Value::String(s) => Value::String(s.trim().to_string()),
                     Value::Number(n) => Value::String(n.to_string().trim().to_string()),
+                    Value::Struct(_) => Value::String(String::new()),
                 }
             }
             "INKEY$" => {
@@ -3868,7 +3961,7 @@ impl Interpreter {
         subscripts
     }
 
-    fn get_array_element(&mut self, name: &str, subscripts: &[usize]) -> f64 {
+    fn get_array_element(&mut self, name: &str, subscripts: &[usize]) -> Value {
         // Auto-initialize if needed with default dimensions (base to 10 for each dimension)
         if !self.arrays.contains_key(name) {
             let lower_bounds = vec![self.option_base; subscripts.len()];
@@ -3878,13 +3971,28 @@ impl Interpreter {
         }
 
         if let Some(array) = self.arrays.get(name) {
-            if let Some(Value::Number(n)) = array.get(subscripts) {
-                return *n;
+            // Struct-backed array: forward field reads to dyncall
+            if let Some(sv) = &array.struct_val {
+                if subscripts.len() == 1 {
+                    return match sv.script_read(subscripts[0]) {
+                        Ok(dyncall::ScriptVal::Number(n)) => Value::Number(n),
+                        Ok(dyncall::ScriptVal::Str(s)) => Value::String(s),
+                        Err(_) => {
+                            eprintln!("Error: struct field {} out of bounds or unreadable", subscripts[0]);
+                            Value::Number(0.0)
+                        }
+                    };
+                }
+                eprintln!("Error: struct arrays require a single subscript");
+                return Value::Number(0.0);
+            }
+            if let Some(val) = array.get(subscripts) {
+                return val.clone();
             } else {
                 eprintln!("Error: Array subscript out of bounds or dimension mismatch");
             }
         }
-        0.0
+        Value::Number(0.0)
     }
 
     fn set_array_element(&mut self, name: &str, subscripts: &[usize], value: Value) {
