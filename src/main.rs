@@ -1602,8 +1602,9 @@ impl Interpreter {
             if let Some(stmt) = self.program.get(&line_num).cloned() {
                 match stmt {
                     Statement::Goto { line } => {
-                        // Find the index of the target line
-                        if let Some(pos) = lines.iter().position(|&l| l == line) {
+                        // Find the target line, or the next executable line after it
+                        // (handles GOTO to REM lines, which have no executable statement)
+                        if let Some(pos) = lines.iter().position(|&l| l >= line) {
                             pc = pos;
                             continue;
                         } else {
@@ -1613,7 +1614,7 @@ impl Interpreter {
                     }
                     Statement::Gosub { line } => {
                         self.call_stack.push(pc + 1);
-                        if let Some(pos) = lines.iter().position(|&l| l == line) {
+                        if let Some(pos) = lines.iter().position(|&l| l >= line) {
                             pc = pos;
                             continue;
                         } else {
@@ -1636,7 +1637,7 @@ impl Interpreter {
                             let index = n.trunc() as usize;
                             if index >= 1 && index <= target_lines.len() {
                                 let target = target_lines[index - 1];
-                                if let Some(pos) = lines.iter().position(|&l| l == target) {
+                                if let Some(pos) = lines.iter().position(|&l| l >= target) {
                                     pc = pos;
                                     continue;
                                 }
@@ -1651,7 +1652,7 @@ impl Interpreter {
                             if index >= 1 && index <= target_lines.len() {
                                 let target = target_lines[index - 1];
                                 self.call_stack.push(pc + 1);
-                                if let Some(pos) = lines.iter().position(|&l| l == target) {
+                                if let Some(pos) = lines.iter().position(|&l| l >= target) {
                                     pc = pos;
                                     continue;
                                 }
@@ -1665,7 +1666,7 @@ impl Interpreter {
                             if let Some(stmt) = then_stmt {
                                 self.execute_statement(&stmt);
                             } else if let Some(line) = then_line {
-                                if let Some(pos) = lines.iter().position(|&l| l == line) {
+                                if let Some(pos) = lines.iter().position(|&l| l >= line) {
                                     pc = pos;
                                     continue;
                                 }
