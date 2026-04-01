@@ -1272,6 +1272,16 @@ fn parse_single_statement(tokens: &[Token]) -> Vec<Statement> {
                         // Traditional IF...THEN line_number
                         then_line = Some(line.parse().unwrap_or(0));
                         i = j + 1;
+                    } else if matches!(tokens.get(j), Some(Token::Keyword(kw)) if kw == "GOTO")
+                    {
+                        // IF...THEN GOTO line_number
+                        if let Some(Token::Number(line)) = tokens.get(j + 1) {
+                            then_line = Some(line.parse().unwrap_or(0));
+                            i = j + 2;
+                        } else {
+                            then_line = None;
+                            i = j + 1;
+                        }
                     } else {
                         // Inline statement after THEN
                         then_line = None;
@@ -2978,10 +2988,10 @@ impl Interpreter {
             let left_val = self.evaluate_expr(&left);
             let right_val = self.evaluate_expr(&right);
 
-            match (left_val, right_val) {
+            let result = match (&left_val, &right_val) {
                 (Value::Number(l), Value::Number(r)) => match op.as_str() {
                     "=" => l == r,
-                    "<>" => (l - r).abs() > f64::EPSILON,
+                    "<>" => l != r,
                     "<" => l < r,
                     ">" => l > r,
                     "<=" => l <= r,
@@ -2997,8 +3007,39 @@ impl Interpreter {
                     ">=" => l >= r,
                     _ => false,
                 },
+                (Value::Number(l), Value::String(r)) => {
+                    if let Ok(r_num) = r.parse::<f64>() {
+                        match op.as_str() {
+                            "=" => *l == r_num,
+                            "<>" => *l != r_num,
+                            "<" => *l < r_num,
+                            ">" => *l > r_num,
+                            "<=" => *l <= r_num,
+                            ">=" => *l >= r_num,
+                            _ => false,
+                        }
+                    } else {
+                        false
+                    }
+                },
+                (Value::String(l), Value::Number(r)) => {
+                    if let Ok(l_num) = l.parse::<f64>() {
+                        match op.as_str() {
+                            "=" => l_num == *r,
+                            "<>" => l_num != *r,
+                            "<" => l_num < *r,
+                            ">" => l_num > *r,
+                            "<=" => l_num <= *r,
+                            ">=" => l_num >= *r,
+                            _ => false,
+                        }
+                    } else {
+                        false
+                    }
+                },
                 _ => false,
-            }
+            };
+            result
         } else {
             false
         }
