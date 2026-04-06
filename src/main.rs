@@ -2777,6 +2777,23 @@ impl Interpreter {
                 // RESUME is handled in run() method, not here
                 // This shouldn't be executed directly
             }
+            Statement::Gosub { line } => {
+                eprintln!(
+                    "Error: GOSUB {} must be on its own line, not combined with other statements using ':'",
+                    line
+                );
+            }
+            Statement::Return => {
+                eprintln!(
+                    "Error: RETURN must be on its own line, not combined with other statements using ':'"
+                );
+            }
+            Statement::Goto { line } => {
+                eprintln!(
+                    "Error: GOTO {} must be on its own line, not combined with other statements using ':'",
+                    line
+                );
+            }
             Statement::Expr { expr } => {
                 // Evaluate for side effects, discard return value
                 let processed = self.process_functions_and_parentheses(expr);
