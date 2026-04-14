@@ -1948,6 +1948,16 @@ impl Interpreter {
                             // Execute THEN part
                             if let Some(stmt) = then_stmt {
                                 self.execute_statement(&stmt);
+                                if self.error_line < 0 {
+                                    let err_code = -self.error_line;
+                                    self.error_line = line_num;
+                                    self.variables.insert("__ERR__".to_string(), Value::Number(err_code as f64));
+                                    if let Some(handler_line) = self.error_handler {
+                                        if let Some(handler_pc) = lines.iter().position(|&l| l == handler_line) {
+                                            pc = handler_pc - 1;
+                                        }
+                                    }
+                                }
                             } else if let Some(line) = then_line {
                                 if let Some(pos) = lines.iter().position(|&l| l == line) {
                                     pc = pos;
@@ -1958,6 +1968,16 @@ impl Interpreter {
                             // Execute ELSE part if it exists
                             if let Some(stmt) = else_stmt {
                                 self.execute_statement(&stmt);
+                                if self.error_line < 0 {
+                                    let err_code = -self.error_line;
+                                    self.error_line = line_num;
+                                    self.variables.insert("__ERR__".to_string(), Value::Number(err_code as f64));
+                                    if let Some(handler_line) = self.error_handler {
+                                        if let Some(handler_pc) = lines.iter().position(|&l| l == handler_line) {
+                                            pc = handler_pc - 1;
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -2782,17 +2802,20 @@ impl Interpreter {
                     "Error: GOSUB {} must be on its own line, not combined with other statements using ':'",
                     line
                 );
+                self.error_line = -5; // ERR 5: Illegal function call
             }
             Statement::Return => {
                 eprintln!(
                     "Error: RETURN must be on its own line, not combined with other statements using ':'"
                 );
+                self.error_line = -5; // ERR 5: Illegal function call
             }
             Statement::Goto { line } => {
                 eprintln!(
                     "Error: GOTO {} must be on its own line, not combined with other statements using ':'",
                     line
                 );
+                self.error_line = -5; // ERR 5: Illegal function call
             }
             Statement::Expr { expr } => {
                 // Evaluate for side effects, discard return value
