@@ -1783,6 +1783,8 @@ struct Interpreter {
     last_error: Option<String>,
     error_line: i32,
     resume_line: Option<usize>,
+    goto_target: Option<i32>,
+    gosub_target: Option<i32>,
 }
 
 
@@ -1811,6 +1813,8 @@ impl Interpreter {
             last_error: None,
             error_line: 0,
             resume_line: None,
+            goto_target: None,
+            gosub_target: None,
         }
     }
 
@@ -1948,6 +1952,25 @@ impl Interpreter {
                             // Execute THEN part
                             if let Some(stmt) = then_stmt {
                                 self.execute_statement(&stmt);
+                                if let Some(target) = self.goto_target.take() {
+                                    if let Some(pos) = lines.iter().position(|&l| l == target) {
+                                        pc = pos;
+                                        continue;
+                                    } else {
+                                        eprintln!("Error: Line {} not found", target);
+                                        break;
+                                    }
+                                }
+                                if let Some(target) = self.gosub_target.take() {
+                                    self.call_stack.push(pc + 1);
+                                    if let Some(pos) = lines.iter().position(|&l| l == target) {
+                                        pc = pos;
+                                        continue;
+                                    } else {
+                                        eprintln!("Error: Line {} not found", target);
+                                        break;
+                                    }
+                                }
                                 if self.error_line < 0 {
                                     let err_code = -self.error_line;
                                     self.error_line = line_num;
@@ -1968,6 +1991,25 @@ impl Interpreter {
                             // Execute ELSE part if it exists
                             if let Some(stmt) = else_stmt {
                                 self.execute_statement(&stmt);
+                                if let Some(target) = self.goto_target.take() {
+                                    if let Some(pos) = lines.iter().position(|&l| l == target) {
+                                        pc = pos;
+                                        continue;
+                                    } else {
+                                        eprintln!("Error: Line {} not found", target);
+                                        break;
+                                    }
+                                }
+                                if let Some(target) = self.gosub_target.take() {
+                                    self.call_stack.push(pc + 1);
+                                    if let Some(pos) = lines.iter().position(|&l| l == target) {
+                                        pc = pos;
+                                        continue;
+                                    } else {
+                                        eprintln!("Error: Line {} not found", target);
+                                        break;
+                                    }
+                                }
                                 if self.error_line < 0 {
                                     let err_code = -self.error_line;
                                     self.error_line = line_num;
@@ -2205,6 +2247,25 @@ impl Interpreter {
                             );
                         } else {
                             self.execute_statement(&stmt);
+                        }
+                        if let Some(target) = self.goto_target.take() {
+                            if let Some(pos) = lines.iter().position(|&l| l == target) {
+                                pc = pos;
+                                continue;
+                            } else {
+                                eprintln!("Error: Line {} not found", target);
+                                break;
+                            }
+                        }
+                        if let Some(target) = self.gosub_target.take() {
+                            self.call_stack.push(pc + 1);
+                            if let Some(pos) = lines.iter().position(|&l| l == target) {
+                                pc = pos;
+                                continue;
+                            } else {
+                                eprintln!("Error: Line {} not found", target);
+                                break;
+                            }
                         }
                     }
                 }
@@ -2798,11 +2859,7 @@ impl Interpreter {
                 // This shouldn't be executed directly
             }
             Statement::Gosub { line } => {
-                eprintln!(
-                    "Error: GOSUB {} must be on its own line, not combined with other statements using ':'",
-                    line
-                );
-                self.error_line = -5; // ERR 5: Illegal function call
+                self.gosub_target = Some(*line);
             }
             Statement::Return => {
                 eprintln!(
@@ -2811,11 +2868,7 @@ impl Interpreter {
                 self.error_line = -5; // ERR 5: Illegal function call
             }
             Statement::Goto { line } => {
-                eprintln!(
-                    "Error: GOTO {} must be on its own line, not combined with other statements using ':'",
-                    line
-                );
-                self.error_line = -5; // ERR 5: Illegal function call
+                self.goto_target = Some(*line);
             }
             Statement::Expr { expr } => {
                 // Evaluate for side effects, discard return value
@@ -2924,26 +2977,17 @@ impl Interpreter {
         if let Some(op) = comparison {
             let left_val = self.evaluate_expr(&left);
             let right_val = self.evaluate_expr(&right);
-            let left_compare = match left_val {
-                Value::Number(n) => Value::String(n.to_string()),
-                Value::String(s) => Value::String(s),
-                Value::Struct(_) => Value::String(String::new()),
-            };
-            let right_compare = match right_val {
-                Value::Number(n) => Value::String(n.to_string()),
-                Value::String(s) => Value::String(s),
-                Value::Struct(_) => Value::String(String::new()),
-            };
 
-            match left_compare {
-                Value::String(ref s) if s == "27" => {
-                    // Debug print
-                    println!("Comparing: {:?} {} {:?}", left_compare, op, right_compare);
-                }
-                _ => {}
-            }
-
-            match (left_compare, right_compare) {
+            match (left_val, right_val) {
+                (Value::Number(l), Value::Number(r)) => match op.as_str() {
+                    "=" => l == r,
+                    "<>" => (l - r).abs() > f64::EPSILON,
+                    "<" => l < r,
+                    ">" => l > r,
+                    "<=" => l <= r,
+                    ">=" => l >= r,
+                    _ => false,
+                },
                 (Value::String(l), Value::String(r)) => match op.as_str() {
                     "=" => l == r,
                     "<>" => l != r,
