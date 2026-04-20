@@ -1,36 +1,6 @@
-use dyncall::{ArgType, ArgVal, FuncDef, ScriptVal, StructValue};
+use dyncall::{ArgType, FuncDef, ScriptResult, ScriptVal, StructValue};
 
 use crate::{Interpreter, Token, Value};
-
-/// Holds a heap-allocated numeric output buffer for a Pointer(T) dyncall argument.
-/// Boxing ensures the address stays stable while the invocation stores raw pointers to it.
-enum OutNum {
-    Char(Box<u8>),
-    I16(Box<i16>),
-    U16(Box<u16>),
-    I32(Box<i32>),
-    U32(Box<u32>),
-    I64(Box<i64>),
-    U64(Box<u64>),
-    F32(Box<f32>),
-    F64(Box<f64>),
-}
-
-impl OutNum {
-    fn to_f64(&self) -> f64 {
-        match self {
-            OutNum::Char(v) => **v as f64,
-            OutNum::I16(v) => **v as f64,
-            OutNum::U16(v) => **v as f64,
-            OutNum::I32(v) => **v as f64,
-            OutNum::U32(v) => **v as f64,
-            OutNum::I64(v) => **v as f64,
-            OutNum::U64(v) => **v as f64,
-            OutNum::F32(v) => **v as f64,
-            OutNum::F64(v) => **v,
-        }
-    }
-}
 
 /// Holds a struct argument that was built from a BASIC array.
 /// `writeback_array` is set for `*{...}` (pointer-to-struct) args so that mutated
@@ -40,26 +10,13 @@ struct StructSlot {
     writeback_array: Option<String>,
 }
 
-fn result_to_tokens(ret: &ArgVal, result: &mut Vec<Token>) {
-    match ret {
-        ArgVal::Char(n) => result.push(Token::Number(n.to_string())),
-        ArgVal::I16(n) => result.push(Token::Number(n.to_string())),
-        ArgVal::U16(n) => result.push(Token::Number(n.to_string())),
-        ArgVal::I32(n) => result.push(Token::Number(n.to_string())),
-        ArgVal::U32(n) => result.push(Token::Number(n.to_string())),
-        ArgVal::I64(n) => result.push(Token::Number(n.to_string())),
-        ArgVal::U64(n) => result.push(Token::Number(n.to_string())),
-        ArgVal::F32(n) => result.push(Token::Number(n.to_string())),
-        ArgVal::F64(n) => result.push(Token::Number(n.to_string())),
-        ArgVal::RustString(s) => {
-            let string_val = unsafe { (*(*s)).clone() };
-            result.push(Token::StringLiteral(string_val));
-        }
-        ArgVal::Pointer(p) => result.push(Token::Number((*p as i64).to_string())),
-        // Struct returns become an opaque Token::Struct; LET stores it as a
-        // struct-backed array so that field reads (e.g. lc(0)) work naturally.
-        ArgVal::StructValue(sv) => result.push(Token::Struct(sv.clone())),
-        _ => result.push(Token::Number("0".to_string())),
+fn script_val_to_token(val: ScriptVal) -> Token {
+    match val {
+        ScriptVal::Integer(n) => Token::Number(n.to_string()),
+        ScriptVal::Number(f) => Token::Number(f.to_string()),
+        ScriptVal::Str(s)    => Token::StringLiteral(s),
+        ScriptVal::Pointer(p) => Token::Number((p as i64).to_string()),
+        ScriptVal::Nil       => Token::Number("0".to_string()),
     }
 }
 
@@ -72,46 +29,9 @@ impl Interpreter {
         result: &mut Vec<Token>,
     ) {
         let mut invoke = fdef.prep();
-        let arg_count = arg_values.len();
-
-        // Pre-allocate buffers for OCString args so they have stable addresses
-        // during the call (the invocation stores raw pointers into them).
-        let mut oc_strings: Vec<Option<String>> = (0..arg_count).map(|_| None).collect();
-        for (i, v) in arg_values.iter().enumerate() {
-            if i < fdef.get_arg_count() && matches!(fdef.get_arg_type(i), ArgType::OCString(_)) {
-                oc_strings[i] = Some(match v {
-                    Value::String(s) => s.clone(),
-                    _ => String::new(),
-                });
-            }
-        }
-
-        // Pre-allocate boxed buffers for Pointer(numeric) output args.
-        let mut out_nums: Vec<Option<OutNum>> = (0..arg_count).map(|_| None).collect();
-        for (i, v) in arg_values.iter().enumerate() {
-            if i < fdef.get_arg_count() {
-                if let ArgType::Pointer(inner) = fdef.get_arg_type(i) {
-                    let init = match v {
-                        Value::Number(n) => *n,
-                        _ => 0.0,
-                    };
-                    out_nums[i] = Some(match inner.as_ref() {
-                        ArgType::Char => OutNum::Char(Box::new(init as u8)),
-                        ArgType::I16 => OutNum::I16(Box::new(init as i16)),
-                        ArgType::U16 => OutNum::U16(Box::new(init as u16)),
-                        ArgType::I32 => OutNum::I32(Box::new(init as i32)),
-                        ArgType::U32 => OutNum::U32(Box::new(init as u32)),
-                        ArgType::I64 => OutNum::I64(Box::new(init as i64)),
-                        ArgType::U64 => OutNum::U64(Box::new(init as u64)),
-                        ArgType::F32 => OutNum::F32(Box::new(init as f32)),
-                        ArgType::F64 => OutNum::F64(Box::new(init)),
-                        _ => continue,
-                    });
-                }
-            }
-        }
 
         // Build StructSlots for struct/pointer-to-struct arguments from BASIC arrays.
+        let arg_count = arg_values.len();
         let mut struct_slots: Vec<Option<StructSlot>> = (0..arg_count).map(|_| None).collect();
         for (i, slot) in struct_slots.iter_mut().enumerate() {
             if i >= fdef.get_arg_count() {
@@ -145,10 +65,10 @@ impl Interpreter {
                 result.push(Token::Number("0".to_string()));
                 return;
             };
-            let script_vals: Vec<dyncall::ScriptVal> = array.data.iter().map(|v| match v {
-                Value::Number(n) => dyncall::ScriptVal::Number(*n),
-                Value::String(s) => dyncall::ScriptVal::Str(s.clone()),
-                Value::Struct(_) => dyncall::ScriptVal::Number(0.0),
+            let script_vals: Vec<ScriptVal> = array.data.iter().map(|v| match v {
+                Value::Number(n) => ScriptVal::Number(*n),
+                Value::String(s) => ScriptVal::Str(s.clone()),
+                Value::Struct(_) => ScriptVal::Number(0.0),
             }).collect();
             let sv = match StructValue::from_script_vals(arg_type, &script_vals) {
                 Ok(sv) => sv,
@@ -181,54 +101,20 @@ impl Interpreter {
                 }
                 continue;
             }
-            if let Some(ref mut out_num) = out_nums[i] {
-                let push_result = match out_num {
-                    OutNum::Char(v) => invoke.push_mut_arg(v.as_mut()),
-                    OutNum::I16(v) => invoke.push_mut_arg(v.as_mut()),
-                    OutNum::U16(v) => invoke.push_mut_arg(v.as_mut()),
-                    OutNum::I32(v) => invoke.push_mut_arg(v.as_mut()),
-                    OutNum::U32(v) => invoke.push_mut_arg(v.as_mut()),
-                    OutNum::I64(v) => invoke.push_mut_arg(v.as_mut()),
-                    OutNum::U64(v) => invoke.push_mut_arg(v.as_mut()),
-                    OutNum::F32(v) => invoke.push_mut_arg(v.as_mut()),
-                    OutNum::F64(v) => invoke.push_mut_arg(v.as_mut()),
-                };
-                if let Err(e) = push_result {
-                    eprintln!("Error pushing output argument {}: {}", i, e);
-                    result.push(Token::Number("0".to_string()));
-                    return;
-                }
-                continue;
-            }
-            let push_result = match arg_value {
-                Value::Number(num) => {
-                    let ptr_slot = i < fdef.get_arg_count()
-                        && matches!(fdef.get_arg_type(i), ArgType::OpaquePointer);
-                    if ptr_slot {
-                        let p = num as i64 as *mut std::ffi::c_void;
-                        invoke.push_arg(&ArgVal::Pointer(p))
-                    } else {
-                        invoke.push_arg(&(num as i64))
-                    }
-                }
-                Value::String(s) => {
-                    if let Some(ref mut oc_str) = oc_strings[i] {
-                        invoke.push_mut_arg(oc_str)
-                    } else {
-                        invoke.push_arg(&s)
-                    }
-                }
+            let sv = match arg_value {
+                Value::Number(n) => ScriptVal::Number(n),
+                Value::String(s) => ScriptVal::Str(s),
                 Value::Struct(_) => continue, // pushed via struct_slots above
             };
-            if let Err(e) = push_result {
+            if let Err(e) = invoke.push_script_val(sv) {
                 eprintln!("Error pushing argument {}: {}", i, e);
                 result.push(Token::Number("0".to_string()));
                 return;
             }
         }
 
-        let ret = match invoke.call() {
-            Ok(val) => val,
+        let script_result: ScriptResult = match invoke.call_scripted() {
+            Ok(r) => r,
             Err(e) => {
                 eprintln!("Error calling external function: {}", e);
                 result.push(Token::Number("0".to_string()));
@@ -239,29 +125,20 @@ impl Interpreter {
             self.variables
                 .insert("ERRNO".to_string(), Value::Number(errno_val as f64));
         }
+        result.push(script_val_to_token(script_result.return_val));
 
-        result_to_tokens(&ret, result);
-
-        // Write back updated OCString buffers to the corresponding BASIC variables
-        for (i, oc_str_opt) in oc_strings.into_iter().enumerate() {
-            if let Some(updated) = oc_str_opt {
-                if i < raw_args.len() && raw_args[i].len() == 1 {
-                    if let Token::Identifier(var_name) = &raw_args[i][0] {
-                        self.variables
-                            .insert(var_name.clone(), Value::String(updated));
-                    }
-                }
-            }
-        }
-
-        // Write back updated numeric output buffers to the corresponding BASIC variables
-        for (i, out_num_opt) in out_nums.into_iter().enumerate() {
-            if let Some(out_num) = out_num_opt {
-                if i < raw_args.len() && raw_args[i].len() == 1 {
-                    if let Token::Identifier(var_name) = &raw_args[i][0] {
-                        self.variables
-                            .insert(var_name.clone(), Value::Number(out_num.to_f64()));
-                    }
+        // Write back output-pointer and OCString values to BASIC variables.
+        for (arg_idx, out_val) in script_result.outputs {
+            if arg_idx < raw_args.len() && raw_args[arg_idx].len() == 1 {
+                if let Token::Identifier(var_name) = &raw_args[arg_idx][0] {
+                    let basic_val = match out_val {
+                        ScriptVal::Str(s) => Value::String(s),
+                        ScriptVal::Integer(n) => Value::Number(n as f64),
+                        ScriptVal::Number(f) => Value::Number(f),
+                        ScriptVal::Pointer(p) => Value::Number(p as i64 as f64),
+                        ScriptVal::Nil => Value::Number(0.0),
+                    };
+                    self.variables.insert(var_name.clone(), basic_val);
                 }
             }
         }
@@ -285,7 +162,8 @@ impl Interpreter {
                 array.data[fi] = match slot.sv.script_read(fi) {
                     Ok(ScriptVal::Number(n)) => Value::Number(n),
                     Ok(ScriptVal::Str(s)) => Value::String(s),
-                    Err(_) => break,
+                    Ok(ScriptVal::Integer(n)) => Value::Number(n as f64),
+                    _ => break,
                 };
             }
         }
@@ -326,8 +204,8 @@ mod tests {
     fn writes_mutated_struct_back_via_script_read() {
         let struct_type = StructType::new(vec![ArgType::I32, ArgType::F64]).unwrap();
         let arg_type = ArgType::Pointer(Box::new(ArgType::Struct(struct_type)));
-        let arr = make_array_with_vals(&[0.0, 0.0]);
         let mut sv = StructValue::from_script_vals(&arg_type, &[ScriptVal::Number(0.0), ScriptVal::Number(0.0)]).unwrap();
+        let arr = make_array_with_vals(&[0.0, 0.0]);
         sv.reset();
         sv.push_field(&7i32).unwrap();
         sv.push_field(&3.5f64).unwrap();
@@ -337,6 +215,8 @@ mod tests {
             arr2.data[fi] = match sv.script_read(fi).unwrap() {
                 ScriptVal::Number(n) => Value::Number(n),
                 ScriptVal::Str(s) => Value::String(s),
+                ScriptVal::Integer(n) => Value::Number(n as f64),
+                _ => break,
             };
         }
 

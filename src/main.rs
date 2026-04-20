@@ -4104,7 +4104,10 @@ impl Interpreter {
                 if subscripts.len() == 1 {
                     return match sv.script_read(subscripts[0]) {
                         Ok(dyncall::ScriptVal::Number(n)) => Value::Number(n),
+                        Ok(dyncall::ScriptVal::Integer(n)) => Value::Number(n as f64),
                         Ok(dyncall::ScriptVal::Str(s)) => Value::String(s),
+                        Ok(dyncall::ScriptVal::Pointer(p)) => Value::Number(p as i64 as f64),
+                        Ok(dyncall::ScriptVal::Nil) => Value::Number(0.0),
                         Err(_) => {
                             eprintln!("Error: struct field {} out of bounds or unreadable", subscripts[0]);
                             Value::Number(0.0)
