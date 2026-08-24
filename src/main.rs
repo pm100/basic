@@ -45,6 +45,11 @@ fn main() {
 
                         if let Some(stmt) = statements.first() {
                             interpreter.store_line(line_num, stmt);
+                        } else {
+                            // Comment-only line (REM / '): still register the
+                            // line number as a no-op so GOTO/GOSUB targets
+                            // pointing at it (a labelled-comment idiom) resolve.
+                            interpreter.store_line(line_num, &Statement::Compound(vec![]));
                         }
                     }
                 }
@@ -611,19 +616,39 @@ fn push_token(tokens: &mut Vec<Token>, current: &str, keywords: &[&str]) {
 }
 
 fn parse(tokens: &[Token]) -> Vec<Statement> {
-    // First split by colons to handle multiple statements per line
+    // First split by colons to handle multiple statements per line.
+    //
+    // An inline IF...THEN (as opposed to "THEN <linenum>" / "THEN GOTO
+    // <linenum>") consumes the rest of the line itself, including any
+    // colons that separate the statements in its THEN (and ELSE) clause —
+    // splitting those off here would silently detach them from the IF and
+    // drop the THEN-clause's own statement(s) (parse_single_statement's IF
+    // handling re-splits its THEN/ELSE token spans on colons itself via its
+    // own recursive `parse()` calls). So once such an IF is seen, stop
+    // colon-splitting and hand the remainder through as a single group.
     let mut statement_groups = Vec::new();
     let mut current_group = Vec::new();
+    let mut i = 0;
 
-    for token in tokens {
-        if token == &Token::Colon {
+    while i < tokens.len() {
+        if tokens[i] == Token::Colon {
             if !current_group.is_empty() {
                 statement_groups.push(current_group.clone());
                 current_group.clear();
             }
-        } else {
-            current_group.push(token.clone());
+            i += 1;
+            continue;
         }
+
+        if let Token::Keyword(kw) = &tokens[i] {
+            if kw == "IF" && is_inline_if_then(&tokens[i..]) {
+                current_group.extend_from_slice(&tokens[i..]);
+                break;
+            }
+        }
+
+        current_group.push(tokens[i].clone());
+        i += 1;
     }
     if !current_group.is_empty() {
         statement_groups.push(current_group);
@@ -640,6 +665,33 @@ fn parse(tokens: &[Token]) -> Vec<Statement> {
         vec![Statement::Compound(all_statements)]
     } else {
         all_statements
+    }
+}
+
+/// Given a token slice starting with the "IF" keyword, returns true if its
+/// THEN clause is an inline statement (e.g. `IF x THEN PRINT y`) rather than
+/// a bare line number or `GOTO`/`GOSUB` line number (e.g. `IF x THEN 100` or
+/// `IF x THEN GOTO 100`) — those forms don't consume trailing colon-separated
+/// statements on the same line, so normal colon-splitting still applies.
+fn is_inline_if_then(tokens: &[Token]) -> bool {
+    let mut j = 1;
+    while j < tokens.len() {
+        if let Token::Keyword(kw) = &tokens[j] {
+            if kw == "THEN" {
+                break;
+            }
+        }
+        j += 1;
+    }
+    j += 1; // skip THEN
+
+    match tokens.get(j) {
+        Some(Token::Number(_)) => false,
+        Some(Token::Keyword(kw)) if kw == "GOTO" || kw == "GOSUB" => {
+            !matches!(tokens.get(j + 1), Some(Token::Number(_)))
+        }
+        Some(_) => true,
+        None => false,
     }
 }
 
@@ -1995,6 +2047,9 @@ impl Interpreter {
                                 if let Some(pos) = lines.iter().position(|&l| l == line) {
                                     pc = pos;
                                     continue;
+                                } else {
+                                    eprintln!("Error: Line {} not found", line);
+                                    break;
                                 }
                             }
                         } else {
