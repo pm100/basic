@@ -2687,9 +2687,12 @@ impl Interpreter {
                     .insert(name.clone(), (param.clone(), expr.clone()));
             }
             Statement::DefXfn { name, defstr } => {
-                let fdef = DynCaller::define_function(defstr).unwrap();
-
-                self.external_functions.insert(name.clone(), fdef);
+                match DynCaller::define_function(defstr) {
+                    Ok(fdef) => {
+                        self.external_functions.insert(name.clone(), fdef);
+                    }
+                    Err(e) => eprintln!("Error in DEF XFN {}: {}", name, e),
+                }
             }
             Statement::ExitFor => {
                 self.exit_for_flag = true;
