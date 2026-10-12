@@ -125,7 +125,12 @@ impl Interpreter {
             self.variables
                 .insert("ERRNO".to_string(), Value::Number(errno_val as f64));
         }
-        result.push(script_val_to_token(script_result.return_val));
+        match script_result.return_struct {
+            // *{...} return: an opaque Token::Struct; LET stores it as a
+            // struct-backed array so that field reads (e.g. lc(0)) work.
+            Some(sv) => result.push(Token::Struct(sv)),
+            None => result.push(script_val_to_token(script_result.return_val)),
+        }
 
         // Write back output-pointer and OCString values to BASIC variables.
         for (arg_idx, out_val) in script_result.outputs {
